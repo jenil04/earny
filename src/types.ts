@@ -31,10 +31,29 @@ export interface Rate {
 export type CategoryId = 'yield' | 'launch' | 'founder' | 'airdrop'
 export type RiskLevel = 'low' | 'medium' | 'high'
 
+export interface CurrentPosition {
+  protocolId: string
+  protocolName: string
+  asset: 'USDC' | 'ETH'
+  amount: number        // in underlying (USDC units or ETH units)
+  balanceUsd: number
+  apy: number           // currently earned APY on that position, % (0 if unknown)
+  monthly: number       // USD/mo being earned right now
+  bestProtocolName: string   // name of the best alternative for this asset
+  bestApy: number
+  bestMonthly: number   // USD/mo if moved to the best alternative
+  delta: number         // bestMonthly - monthly; >=0
+}
+
 export interface AnalyzeResult {
   address: string
   opportunities: Opportunity[]
-  totalMonthly: number
+  totalMonthly: number          // potential: best protocol per asset using idle + deposited balance
+  currentMonthly: number        // USD/mo currently being earned across detected positions
+  leftOnTable: number           // max(0, totalMonthly - currentMonthly)
+  lifetimeMissed: number        // cumulative USD that idle assets would have earned at best APY since first inbound
+  earliestInboundIso?: string   // ISO date of earliest inbound transfer across tracked assets
+  positions: CurrentPosition[]  // detected lending deposits, with delta per position
   balances: {
     ETH: number
     USDC: number

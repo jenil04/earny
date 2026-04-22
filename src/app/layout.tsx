@@ -31,6 +31,9 @@ export const metadata: Metadata = {
     icon: '/earny-icon.jpg',
     apple: '/earny-icon.jpg',
   },
+  other: {
+    'base:app_id': '699ed1aca5ccb2b39cd79b19',
+  },
   openGraph: {
     title: 'Earny · Your Onchain CFO',
     description: "Find out how much you're leaving on the table every month.",

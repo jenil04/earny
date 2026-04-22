@@ -20,11 +20,25 @@ function b64ToBuffer(b64: string): ArrayBuffer {
   return buf.buffer
 }
 
+// Shared image is crawled by many user agents (Twitter/X, Farcaster, etc.) and
+// the URL is attacker-controlled. Validate and clamp every input so we can't
+// be coerced into rendering huge numbers or arbitrary strings.
+const MAX_MONTHLY = 10_000_000
+
+function sanitizeCategory(raw: string | null): string | null {
+  if (!raw) return null
+  // Strip control chars, cap length, whitelist printable ASCII + space.
+  const cleaned = raw.replace(/[^\x20-\x7E]/g, '').trim().slice(0, 40)
+  return cleaned.length > 0 ? cleaned : null
+}
+
 export async function GET(req: NextRequest) {
   const { searchParams } = req.nextUrl
-  const monthly  = parseFloat(searchParams.get('monthly') ?? '0')
-  const category = searchParams.get('category') || categoryFor(monthly)
-  const total    = monthly.toFixed(2)
+  const rawMonthly = searchParams.get('monthly')
+  const parsed     = rawMonthly != null ? Number(rawMonthly) : 0
+  const monthly    = Number.isFinite(parsed) ? Math.max(0, Math.min(MAX_MONTHLY, parsed)) : 0
+  const category   = sanitizeCategory(searchParams.get('category')) ?? categoryFor(monthly)
+  const total      = monthly.toFixed(2)
 
   const serifData       = b64ToBuffer(SERIF_REGULAR_B64)
   const serifItalicData = b64ToBuffer(SERIF_ITALIC_B64)

@@ -53,8 +53,20 @@ function categoryFor(monthly: number) {
   return 'Whale Asleep'
 }
 
-function buildShareText(totalMonthly: number) {
+function buildShareText(totalMonthly: number, lifetimeMissed: number, earliestIso?: string) {
+  if (lifetimeMissed > 0 && earliestIso) {
+    const d = new Date(earliestIso)
+    const when = d.toLocaleDateString('en-US', { month: 'long', year: 'numeric' })
+    return `I've left $${Math.round(lifetimeMissed).toLocaleString()} on the table since ${when}, because my assets on Base have been sitting idle.\n\nEarny showed me exactly where they should have been.\n\nCheck yours 👇\nearny.chat`
+  }
   return `I could be earning $${totalMonthly.toFixed(2)}/mo on Base, and I wasn't.\n\nEarny showed me exactly where my assets should be working.\n\nCheck yours 👇\nearny.chat`
+}
+
+function formatSinceMonth(iso?: string): string | null {
+  if (!iso) return null
+  const d = new Date(iso)
+  if (isNaN(d.getTime())) return null
+  return d.toLocaleDateString('en-US', { month: 'long', year: 'numeric' })
 }
 
 // ── Shared styles ─────────────────────────────────────────────────────────────
@@ -218,8 +230,10 @@ function SiteFooter({ dark = true }: { dark?: boolean }) {
       {/* Tokens attribution, centered */}
       <div style={{ padding: isMobile ? '20px 20px 16px' : '28px 40px 20px', display: 'flex', justifyContent: 'center', alignItems: 'center', gap: 10, borderBottom: `1px solid ${border}` }}>
         <span style={{ opacity: 0.6 }}>A product by</span>
-        {/* eslint-disable-next-line @next/next/no-img-element */}
-        <img src={tokensLogo} alt="Tokens" style={{ height: 18, display: 'block', opacity: 0.85 }}/>
+        <a href="https://tokens.fun" target="_blank" rel="noopener noreferrer" style={{ display: 'inline-flex', alignItems: 'center' }}>
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img src={tokensLogo} alt="Tokens" style={{ height: 18, display: 'block', opacity: 0.85 }}/>
+        </a>
       </div>
       <div style={{ padding: isMobile ? '16px 20px' : '20px 40px', display: 'flex', flexDirection: isMobile ? 'column' : 'row', flexWrap: 'wrap', gap: isMobile ? 8 : 16, justifyContent: isMobile ? 'center' : 'space-between', alignItems: 'center', textAlign: isMobile ? 'center' : 'left' }}>
         <div>
@@ -246,7 +260,8 @@ function HowStep({ n, title, body }: { n: string; title: string; body: string })
 function Landing({ onAnalyze }: { onAnalyze: (addr: string) => void }) {
   const [addr, setAddr] = useState('')
   const isMobile = useIsMobile()
-  const valid = /^0x[a-fA-F0-9]{40}$/.test(addr.trim())
+  const normalized = addr.trim().toLowerCase()
+  const valid = /^0x[a-f0-9]{40}$/.test(normalized)
 
   return (
     <div style={{ minHeight: '100vh', background: INK, color: '#fff', fontFamily: "var(--font-display)", display: 'flex', flexDirection: 'column', position: 'relative', overflow: 'hidden' }}>
@@ -272,7 +287,7 @@ function Landing({ onAnalyze }: { onAnalyze: (addr: string) => void }) {
         </p>
 
         <form
-          onSubmit={(e) => { e.preventDefault(); if (valid) onAnalyze(addr.trim()) }}
+          onSubmit={(e) => { e.preventDefault(); if (valid) onAnalyze(normalized) }}
           style={{ display: 'flex', flexDirection: isMobile ? 'column' : 'row', gap: isMobile ? 10 : 8, padding: isMobile ? 12 : 8, background: '#fff', borderRadius: isMobile ? 20 : 999, boxShadow: '0 30px 80px rgba(25,109,253,0.22), 0 2px 0 rgba(255,255,255,0.4) inset', width: 'min(640px, 92vw)' }}
         >
           {!isMobile && <div style={{ display: 'flex', alignItems: 'center', paddingLeft: 20, color: INK_MUTED }}><WalletGlyph/></div>}
@@ -371,6 +386,88 @@ function Analyzing({ addr, onDone, onError }: { addr: string; onDone: (r: Analyz
             </li>
           ))}
         </ul>
+      </div>
+    </div>
+  )
+}
+
+// ── Current positions card ────────────────────────────────────────────────────
+function PositionsCard({
+  positions, currentMonthly, leftOnTable, opportunities, isMobile,
+}: {
+  positions: AnalyzeResult['positions']
+  currentMonthly: number
+  leftOnTable: number
+  opportunities: Opportunity[]
+  isMobile: boolean
+}) {
+  if (positions.length === 0) return null
+
+  const logoFor = (name: string) =>
+    opportunities.find(o => o.name === name)?.logo ?? ''
+  const brandFor = (name: string) =>
+    opportunities.find(o => o.name === name)?.brand ?? BLUE
+
+  return (
+    <div style={{ marginTop: 36, padding: isMobile ? '20px 18px' : '24px 28px', background: '#fff', borderRadius: 20, border: `1px solid rgba(10,11,26,0.08)`, boxShadow: '0 4px 20px rgba(10,11,26,0.04)' }}>
+      <div style={{ display: 'flex', flexDirection: isMobile ? 'column' : 'row', gap: isMobile ? 12 : 24, alignItems: isMobile ? 'flex-start' : 'center', justifyContent: 'space-between', marginBottom: 18 }}>
+        <div>
+          <div style={{ font: "500 11px/1 var(--font-display)", color: INK_DIM, letterSpacing: '0.14em', textTransform: 'uppercase', marginBottom: 8 }}>
+            You&apos;re already earning
+          </div>
+          <div style={{ font: "400 34px/1 var(--font-serif)", color: INK }}>
+            +${currentMonthly.toFixed(2)}<span style={{ font: "400 18px/1 var(--font-serif)", color: INK_MUTED, fontStyle: 'italic' }}> /mo</span>
+          </div>
+        </div>
+        {leftOnTable > 0 && (
+          <div style={{ textAlign: isMobile ? 'left' : 'right' }}>
+            <div style={{ font: "500 11px/1 var(--font-display)", color: INK_DIM, letterSpacing: '0.14em', textTransform: 'uppercase', marginBottom: 8 }}>
+              Left on the table
+            </div>
+            <div style={{ font: "400 34px/1 var(--font-serif)", color: BLUE }}>
+              +${leftOnTable.toFixed(2)}<span style={{ font: "400 18px/1 var(--font-serif)", color: INK_MUTED, fontStyle: 'italic' }}> /mo</span>
+            </div>
+          </div>
+        )}
+      </div>
+
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+        {positions.map((p, i) => {
+          const logo = logoFor(p.protocolName)
+          const brand = brandFor(p.protocolName)
+          return (
+            <div key={i} style={{ display: 'grid', gridTemplateColumns: isMobile ? '36px 1fr auto' : '36px 1fr auto auto', gap: isMobile ? 12 : 20, alignItems: 'center', padding: '12px 4px', borderTop: i === 0 ? 'none' : `1px solid rgba(10,11,26,0.06)` }}>
+              <div style={{ width: 36, height: 36, borderRadius: 10, background: brand, overflow: 'hidden', display: 'grid', placeItems: 'center' }}>
+                {logo
+                  /* eslint-disable-next-line @next/next/no-img-element */
+                  ? <img src={logo} alt={p.protocolName} style={{ width: 36, height: 36, objectFit: 'contain' }}/>
+                  : <span style={{ font: "700 14px/1 var(--font-display)", color: '#fff' }}>{p.protocolName.slice(0, 2).toUpperCase()}</span>}
+              </div>
+              <div style={{ minWidth: 0 }}>
+                <div style={{ font: "700 15px/1.2 var(--font-display)", color: INK }}>{p.protocolName}</div>
+                <div style={{ font: "400 13px/1.4 var(--font-display)", color: INK_MUTED, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                  {p.asset === 'ETH' ? `${p.amount.toFixed(4)} ETH` : `${Math.floor(p.amount).toLocaleString('en-US')} USDC`} · {p.apy}% APY
+                </div>
+              </div>
+              {!isMobile && (
+                <div style={{ textAlign: 'right', minWidth: 90 }}>
+                  <div style={{ font: "400 18px/1 var(--font-serif)", color: INK }}>+${p.monthly.toFixed(2)}</div>
+                  <div style={{ font: "500 10px/1 var(--font-display)", color: INK_DIM, marginTop: 3 }}>/mo now</div>
+                </div>
+              )}
+              <div style={{ textAlign: 'right', minWidth: 130 }}>
+                {p.delta > 0 && p.bestProtocolName && p.bestProtocolName !== p.protocolName ? (
+                  <>
+                    <div style={{ font: "400 18px/1 var(--font-serif)", color: BLUE }}>+${p.delta.toFixed(2)} more</div>
+                    <div style={{ font: "500 10px/1.3 var(--font-display)", color: INK_DIM, marginTop: 3 }}>move to {p.bestProtocolName}</div>
+                  </>
+                ) : (
+                  <div style={{ font: "500 11px/1 var(--font-display)", color: GREEN, letterSpacing: '0.1em', textTransform: 'uppercase' }}>Best rate</div>
+                )}
+              </div>
+            </div>
+          )
+        })}
       </div>
     </div>
   )
@@ -901,7 +998,8 @@ function Results({ result, onShare, onReset, onOpenProto }: {
   onReset: () => void
   onOpenProto: (p: Opportunity) => void
 }) {
-  const { address, opportunities, totalMonthly: yieldMonthly } = result
+  const { address, opportunities, totalMonthly: yieldMonthly, positions, currentMonthly, leftOnTable, lifetimeMissed, earliestInboundIso } = result
+  const sinceLabel = formatSinceMonth(earliestInboundIso)
   const isMobile = useIsMobile()
 
   // Extras from other categories; each has enabled flag and computed monthly.
@@ -959,9 +1057,28 @@ function Results({ result, onShare, onReset, onOpenProto }: {
                 <>That&apos;s what your assets <em style={{ fontFamily: "var(--font-serif)", fontStyle: 'italic', color: INK, fontSize: 22 }}>could</em> be earning each month based on live APYs, if you deploy each asset to its best protocol. Stack more categories below.</>
               )}
             </p>
+
+            {lifetimeMissed > 0 && sinceLabel && (
+              <div style={{ marginTop: 28, padding: isMobile ? '18px 20px' : '22px 26px', background: PAPER, borderRadius: 16, border: `1px solid rgba(10,11,26,0.08)`, display: 'flex', alignItems: 'baseline', gap: 14, flexWrap: 'wrap', maxWidth: 680 }}>
+                <div style={{ font: "500 12px/1 var(--font-display)", color: INK_MUTED, letterSpacing: '0.14em', textTransform: 'uppercase' }}>Left on the table</div>
+                <div style={{ font: `400 clamp(28px, 4vw, 40px)/1 var(--font-serif)`, color: INK, letterSpacing: '-0.02em' }}>
+                  <span style={{ color: INK_DIM, fontSize: '0.6em' }}>$</span>{Math.round(lifetimeMissed).toLocaleString()}
+                </div>
+                <div style={{ font: "400 14px/1.4 var(--font-display)", color: INK_MUTED }}>since {sinceLabel} — idle assets that could have been working.</div>
+              </div>
+            )}
+
             <div style={{ display: 'flex', gap: 12, marginTop: 32, flexWrap: 'wrap' }}>
               <button onClick={onShare} style={primaryBtnStyle}><ShareIcon/> Share my results</button>
             </div>
+
+            <PositionsCard
+              positions={positions}
+              currentMonthly={currentMonthly}
+              leftOnTable={leftOnTable}
+              opportunities={opportunities}
+              isMobile={isMobile}
+            />
 
             <GoalPanel yieldMonthly={yieldMonthly} extras={extras} isMobile={isMobile}/>
           </>
@@ -1083,13 +1200,34 @@ function ShareCard({ result, captureRef }: { result: AnalyzeResult; captureRef?:
           <div style={{ display: 'inline-flex', alignItems: 'center', gap: 10, padding: '8px 18px', background: `linear-gradient(90deg, ${BLUE}55, ${BLUE_2}11)`, border: `1px solid ${BLUE_2}66`, borderRadius: 999, font: "700 13px/1 var(--font-display)", letterSpacing: '0.18em', textTransform: 'uppercase', color: SKY, marginBottom: 14, alignSelf: 'flex-start' }}>
             <span style={{ width: 6, height: 6, background: GREEN, borderRadius: 999 }}/>{cat.toUpperCase()}
           </div>
-          <div style={{ font: "400 28px/1 var(--font-serif)", color: 'rgba(255,255,255,0.7)', marginBottom: 6, fontStyle: 'italic' }}>I could be earning</div>
-          <div style={{ font: "400 200px/0.92 var(--font-serif)", letterSpacing: '-0.03em', display: 'flex', alignItems: 'baseline', gap: 6 }}>
-            <span style={{ font: "400 104px/1 var(--font-serif)", opacity: 0.7 }}>$</span>
-            <span>{total.toLocaleString()}</span>
-            <span style={{ font: "400 68px/1 var(--font-serif)", color: 'rgba(255,255,255,0.6)', fontStyle: 'italic' }}>/mo</span>
-          </div>
-          <div style={{ font: "400 28px/1.2 var(--font-serif)", color: 'rgba(255,255,255,0.85)', marginTop: 10, fontStyle: 'italic' }}>on Base. I just didn&apos;t know where.</div>
+          {result.lifetimeMissed > 0 && result.earliestInboundIso ? (
+            <>
+              <div style={{ font: "400 28px/1 var(--font-serif)", color: 'rgba(255,255,255,0.7)', marginBottom: 6, fontStyle: 'italic' }}>I&apos;ve left on the table</div>
+              <div style={{ font: "400 200px/0.92 var(--font-serif)", letterSpacing: '-0.03em', display: 'flex', alignItems: 'baseline', gap: 6 }}>
+                <span style={{ font: "400 104px/1 var(--font-serif)", opacity: 0.7 }}>$</span>
+                <span>{Math.round(result.lifetimeMissed).toLocaleString()}</span>
+              </div>
+              <div style={{ font: "400 28px/1.2 var(--font-serif)", color: 'rgba(255,255,255,0.85)', marginTop: 10, fontStyle: 'italic' }}>
+                since {formatSinceMonth(result.earliestInboundIso)}. My assets just sat there.
+              </div>
+              {result.totalMonthly > 0 && (
+                <div style={{ marginTop: 18, display: 'inline-flex', alignItems: 'center', gap: 10, padding: '10px 18px', background: 'rgba(255,255,255,0.06)', border: `1px solid rgba(255,255,255,0.16)`, borderRadius: 12, font: "500 18px/1 var(--font-display)", color: 'rgba(255,255,255,0.9)', alignSelf: 'flex-start' }}>
+                  <span style={{ color: SKY }}>+${total.toLocaleString()}/mo</span>
+                  <span style={{ color: 'rgba(255,255,255,0.55)' }}>if I move it today</span>
+                </div>
+              )}
+            </>
+          ) : (
+            <>
+              <div style={{ font: "400 28px/1 var(--font-serif)", color: 'rgba(255,255,255,0.7)', marginBottom: 6, fontStyle: 'italic' }}>I could be earning</div>
+              <div style={{ font: "400 200px/0.92 var(--font-serif)", letterSpacing: '-0.03em', display: 'flex', alignItems: 'baseline', gap: 6 }}>
+                <span style={{ font: "400 104px/1 var(--font-serif)", opacity: 0.7 }}>$</span>
+                <span>{total.toLocaleString()}</span>
+                <span style={{ font: "400 68px/1 var(--font-serif)", color: 'rgba(255,255,255,0.6)', fontStyle: 'italic' }}>/mo</span>
+              </div>
+              <div style={{ font: "400 28px/1.2 var(--font-serif)", color: 'rgba(255,255,255,0.85)', marginTop: 10, fontStyle: 'italic' }}>on Base. I just didn&apos;t know where.</div>
+            </>
+          )}
 
           {/* Category chips */}
           <div style={{ display: 'flex', gap: 10, marginTop: 24, flexWrap: 'wrap' }}>
@@ -1121,7 +1259,7 @@ function ShareOverlay({ result, onClose }: { result: AnalyzeResult; onClose: () 
   const [busy, setBusy]     = useState<'save' | 'share' | null>(null)
   const [hint, setHint]     = useState('')
   const isMobile = useIsMobile()
-  const text     = buildShareText(result.totalMonthly)
+  const text     = buildShareText(result.totalMonthly, result.lifetimeMissed, result.earliestInboundIso)
   const cardRef  = useRef<HTMLDivElement | null>(null)
 
   const capture = useCallback(async (): Promise<Blob> => {
