@@ -3,7 +3,7 @@ import { isAddress } from 'viem'
 import { getBalances } from '@/lib/wallet'
 import { getBasePools, getEthPrice, findBestPool } from '@/lib/defi-llama'
 import { PROTOCOL_DEFS } from '@/lib/protocols'
-import type { Opportunity, AnalyzeResult } from '@/types'
+import type { Opportunity, AnalyzeResult, Rate } from '@/types'
 
 export async function GET(req: NextRequest) {
   const address = req.nextUrl.searchParams.get('address') ?? ''
@@ -96,12 +96,36 @@ export async function GET(req: NextRequest) {
       }, 0) * 100
     ) / 100
 
+    // All protocol rates regardless of user balance — for the calculator
+    const allRates: Rate[] = []
+    const seenRate = new Set<string>()
+    for (const def of PROTOCOL_DEFS) {
+      if (seenRate.has(def.id)) continue
+      const pool = findBestPool(pools, def.llamaProject, def.llamaSymbol, {
+        minTvl: def.llamaMinTvl,
+        sortBy: def.llamaSortBy,
+        excludeSymbols: def.llamaExclude,
+      })
+      const apy = pool?.apy ?? def.fallbackApy
+      if (!apy) continue
+      seenRate.add(def.id)
+      // dedupe by name, keep best apy
+      const existing = allRates.find(r => r.name === def.name)
+      if (existing) {
+        if (apy > existing.apy) existing.apy = Math.round(apy * 10) / 10
+      } else {
+        allRates.push({ id: def.id, name: def.name, logo: def.logo, brand: def.brand, initials: def.initials, asset: def.token === 'ETH' ? 'ETH' : def.token === 'USDC' ? 'USDC' : 'USDbC', apy: Math.round(apy * 10) / 10 })
+      }
+    }
+    allRates.sort((a, b) => b.apy - a.apy)
+
     const result: AnalyzeResult = {
       address,
       opportunities,
       totalMonthly,
       balances,
       ethPrice,
+      allRates,
     }
 
     return NextResponse.json(result)

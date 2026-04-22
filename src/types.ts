@@ -16,6 +16,16 @@ export interface Opportunity {
   link: string
 }
 
+export interface Rate {
+  id: string
+  name: string
+  logo: string
+  brand: string
+  initials: string
+  asset: string
+  apy: number
+}
+
 export interface AnalyzeResult {
   address: string
   opportunities: Opportunity[]
@@ -27,4 +37,5 @@ export interface AnalyzeResult {
     WETH: number
   }
   ethPrice: number
+  allRates: Rate[]
 }

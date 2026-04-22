@@ -13,16 +13,24 @@ function categoryFor(monthly: number) {
 }
 
 export async function GET(req: NextRequest) {
-  const { searchParams } = req.nextUrl
+  const { searchParams, origin } = req.nextUrl
   const monthly  = parseFloat(searchParams.get('monthly') ?? '0')
   const category = searchParams.get('category') || categoryFor(monthly)
-  const total    = monthly.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
+  const total    = monthly.toFixed(2)
 
-  const INK    = '#0A0B1A'
-  const BLUE   = '#2E70EA'
-  const SKY    = '#A3C5FE'
-  const GREEN  = '#10B981'
-  const MUTED  = 'rgba(255,255,255,0.55)'
+  // Load fonts from the same origin
+  const [serifData, serifItalicData, displayData] = await Promise.all([
+    fetch(`${origin}/fonts/InstrumentSerif-Regular.ttf`).then(r => r.arrayBuffer()),
+    fetch(`${origin}/fonts/InstrumentSerif-Italic.ttf`).then(r => r.arrayBuffer()),
+    fetch(`${origin}/fonts/FunnelDisplay-Bold.ttf`).then(r => r.arrayBuffer()),
+  ])
+
+  const INK   = '#0A0B1A'
+  const BLUE2 = '#2E70EA'
+  const SKY   = '#A3C5FE'
+  const GREEN = '#10B981'
+  const MUTED = 'rgba(255,255,255,0.55)'
+  const DIM   = 'rgba(255,255,255,0.38)'
 
   return new ImageResponse(
     (
@@ -30,71 +38,82 @@ export async function GET(req: NextRequest) {
         style={{
           width: 1200, height: 630,
           background: INK,
-          display: 'flex', flexDirection: 'column',
-          padding: '56px 64px',
+          display: 'flex',
+          flexDirection: 'column',
+          padding: '56px 64px 48px',
           position: 'relative',
-          fontFamily: 'sans-serif',
+          overflow: 'hidden',
+          fontFamily: '"FunnelDisplay"',
         }}
       >
-        {/* Grid dots */}
+        {/* Grid dots overlay */}
         <div style={{
           position: 'absolute', inset: 0,
-          backgroundImage: `radial-gradient(rgba(46,112,234,0.18) 1.5px, transparent 1.5px)`,
+          backgroundImage: `radial-gradient(rgba(46,112,234,0.2) 1.5px, transparent 1.5px)`,
           backgroundSize: '36px 36px',
           display: 'flex',
+          opacity: 0.8,
         }}/>
-        {/* Glow */}
+        {/* Top-right glow */}
         <div style={{
-          position: 'absolute', top: -140, right: -140,
-          width: 560, height: 560,
-          background: `radial-gradient(circle, rgba(46,112,234,0.4) 0%, transparent 70%)`,
+          position: 'absolute', top: -160, right: -160,
+          width: 600, height: 600,
+          background: `radial-gradient(circle, rgba(46,112,234,0.45) 0%, transparent 68%)`,
           borderRadius: '50%',
           display: 'flex',
         }}/>
 
         {/* Header row */}
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', position: 'relative', zIndex: 2 }}>
-          <div style={{ fontSize: 32, fontWeight: 800, color: '#fff', letterSpacing: '-1px' }}>earny</div>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '10px 18px', background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.18)', borderRadius: 999, fontSize: 13, fontWeight: 600, letterSpacing: '0.14em', textTransform: 'uppercase', color: 'rgba(255,255,255,0.85)' }}>
-            <div style={{ width: 6, height: 6, background: GREEN, borderRadius: '50%', display: 'flex' }}/>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', position: 'relative', zIndex: 2, width: '100%' }}>
+          <span style={{ fontSize: 36, fontWeight: 700, color: '#fff', fontFamily: '"FunnelDisplay"', letterSpacing: '-1px' }}>earny</span>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '10px 20px', background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.18)', borderRadius: 999, fontSize: 13, fontWeight: 600, letterSpacing: '0.14em', textTransform: 'uppercase', color: 'rgba(255,255,255,0.85)', fontFamily: '"FunnelDisplay"' }}>
+            <div style={{ width: 7, height: 7, background: GREEN, borderRadius: '50%', display: 'flex' }}/>
             Your Onchain CFO
           </div>
         </div>
 
         {/* Body */}
-        <div style={{ marginTop: 32, position: 'relative', zIndex: 2, display: 'flex', flexDirection: 'column' }}>
+        <div style={{ marginTop: 36, position: 'relative', zIndex: 2, display: 'flex', flexDirection: 'column', flex: 1 }}>
           {/* Category badge */}
-          <div style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '8px 18px', background: `linear-gradient(90deg, rgba(46,112,234,0.2), rgba(46,112,234,0))`, border: `1px solid rgba(46,112,234,0.35)`, borderRadius: 999, fontSize: 14, fontWeight: 700, letterSpacing: '0.14em', textTransform: 'uppercase', color: SKY, marginBottom: 20, width: 'fit-content' }}>
-            <div style={{ width: 6, height: 6, background: GREEN, borderRadius: '50%', display: 'flex' }}/>
-            {category.toUpperCase()}
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '8px 18px', background: `rgba(46,112,234,0.18)`, border: `1px solid rgba(46,112,234,0.4)`, borderRadius: 999, marginBottom: 22, width: 'fit-content' }}>
+            <div style={{ width: 7, height: 7, background: GREEN, borderRadius: '50%', display: 'flex' }}/>
+            <span style={{ fontSize: 14, fontWeight: 700, letterSpacing: '0.14em', textTransform: 'uppercase', color: SKY, fontFamily: '"FunnelDisplay"' }}>{category.toUpperCase()}</span>
           </div>
 
           {/* "I'm leaving" */}
-          <div style={{ fontSize: 26, color: MUTED, fontStyle: 'italic', marginBottom: 10, display: 'flex' }}>I&apos;m leaving</div>
+          <span style={{ fontSize: 28, color: MUTED, fontStyle: 'italic', display: 'flex', fontFamily: '"InstrumentSerif"', marginBottom: 8 }}>I&apos;m leaving</span>
 
-          {/* Big number */}
-          <div style={{ display: 'flex', alignItems: 'baseline', gap: 8 }}>
-            <span style={{ fontSize: 110, color: 'rgba(255,255,255,0.55)', fontWeight: 300, lineHeight: 1 }}>$</span>
-            <span style={{ fontSize: 200, fontWeight: 700, color: '#fff', lineHeight: 0.9, letterSpacing: '-4px' }}>{total}</span>
-            <span style={{ fontSize: 72, color: MUTED, fontStyle: 'italic', lineHeight: 1 }}>/mo</span>
+          {/* Big number row */}
+          <div style={{ display: 'flex', alignItems: 'baseline', gap: 6 }}>
+            <span style={{ fontSize: 120, color: DIM, fontFamily: '"InstrumentSerif"', lineHeight: 1, fontWeight: 400 }}>$</span>
+            <span style={{ fontSize: 210, fontFamily: '"InstrumentSerif"', color: '#fff', lineHeight: 0.9, fontWeight: 400, letterSpacing: '-4px' }}>{total}</span>
+            <span style={{ fontSize: 76, color: MUTED, fontStyle: 'italic', fontFamily: '"InstrumentSerif"', lineHeight: 1 }}>/mo</span>
           </div>
 
           {/* Subtitle */}
-          <div style={{ fontSize: 28, color: 'rgba(255,255,255,0.8)', fontStyle: 'italic', marginTop: 16, display: 'flex' }}>
+          <span style={{ fontSize: 30, color: 'rgba(255,255,255,0.82)', fontStyle: 'italic', marginTop: 18, display: 'flex', fontFamily: '"InstrumentSerif"' }}>
             on the table. Earny showed me where.
-          </div>
+          </span>
         </div>
 
         {/* Footer */}
-        <div style={{ position: 'absolute', bottom: 48, left: 64, right: 64, display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', zIndex: 2 }}>
-          <div style={{ fontSize: 20, color: MUTED, fontStyle: 'italic', display: 'flex' }}>earny.chat — read-only, never moves your funds.</div>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', position: 'relative', zIndex: 2, width: '100%' }}>
+          <span style={{ fontSize: 20, color: MUTED, fontStyle: 'italic', fontFamily: '"InstrumentSerif"' }}>earny.chat — read-only, never moves your funds.</span>
           <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 6 }}>
-            <div style={{ fontSize: 13, color: 'rgba(255,255,255,0.45)', letterSpacing: '0.18em', textTransform: 'uppercase', display: 'flex' }}>Check yours →</div>
-            <div style={{ fontSize: 30, fontWeight: 700, color: '#fff', display: 'flex' }}>earny.chat</div>
+            <span style={{ fontSize: 13, color: 'rgba(255,255,255,0.4)', letterSpacing: '0.2em', textTransform: 'uppercase', fontFamily: '"FunnelDisplay"' }}>Check yours →</span>
+            <span style={{ fontSize: 32, fontWeight: 700, color: '#fff', fontFamily: '"FunnelDisplay"' }}>earny.chat</span>
           </div>
         </div>
       </div>
     ),
-    { width: 1200, height: 630 }
+    {
+      width: 1200,
+      height: 630,
+      fonts: [
+        { name: 'InstrumentSerif', data: serifData,       style: 'normal', weight: 400 },
+        { name: 'InstrumentSerif', data: serifItalicData, style: 'italic', weight: 400 },
+        { name: 'FunnelDisplay',   data: displayData,     style: 'normal', weight: 700 },
+      ],
+    }
   )
 }

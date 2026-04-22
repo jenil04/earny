@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useEffect, useRef, useCallback } from 'react'
-import type { Opportunity, AnalyzeResult } from '@/types'
+import type { Opportunity, AnalyzeResult, Rate } from '@/types'
 
 // ── Palette ──────────────────────────────────────────────────────────────────
 const INK       = '#0A0B1A'
@@ -218,13 +218,22 @@ function SiteFooter({ dark = true }: { dark?: boolean }) {
   const fg       = dark ? 'rgba(255,255,255,0.55)' : INK_MUTED
   const fgStrong = dark ? 'rgba(255,255,255,0.9)'  : INK
   const border   = dark ? 'rgba(255,255,255,0.08)' : 'rgba(10,11,26,0.08)'
+  const tokensLogo = dark ? '/tokens-logo.svg' : '/tokens-logo-dark.svg'
   return (
-    <footer style={{ padding: isMobile ? '24px 20px' : '32px 40px', borderTop: `1px solid ${border}`, display: 'flex', flexWrap: 'wrap', gap: 16, justifyContent: 'space-between', alignItems: 'center', font: "400 13px/1.4 var(--font-display)", color: fg }}>
-      <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-        <span>Built by</span>
-        <a href="https://x.com/jenilt" target="_blank" rel="noopener noreferrer" style={{ color: fgStrong, textDecoration: 'none', fontWeight: 600 }}>@jenilt</a>
+    <footer style={{ borderTop: `1px solid ${border}`, font: "400 13px/1.4 var(--font-display)", color: fg }}>
+      {/* Tokens attribution — centered */}
+      <div style={{ padding: isMobile ? '20px 20px 16px' : '28px 40px 20px', display: 'flex', justifyContent: 'center', alignItems: 'center', gap: 10, borderBottom: `1px solid ${border}` }}>
+        <span style={{ opacity: 0.6 }}>A product by</span>
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        <img src={tokensLogo} alt="Tokens" style={{ height: 18, display: 'block', opacity: 0.85 }}/>
       </div>
-      <div>earny.chat — read-only, never moves your funds.</div>
+      <div style={{ padding: isMobile ? '16px 20px' : '20px 40px', display: 'flex', flexWrap: 'wrap', gap: 16, justifyContent: 'space-between', alignItems: 'center' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+          <span>Built by</span>
+          <a href="https://x.com/jenilt" target="_blank" rel="noopener noreferrer" style={{ color: fgStrong, textDecoration: 'none', fontWeight: 600 }}>@jenilt</a>
+        </div>
+        <div>earny.chat — read-only, never moves your funds.</div>
+      </div>
     </footer>
   )
 }
@@ -270,7 +279,7 @@ function Landing({ onAnalyze }: { onAnalyze: (addr: string) => void }) {
         </h1>
 
         <p style={{ font: "400 clamp(16px, 1.8vw, 22px)/1.45 var(--font-display)", color: 'rgba(255,255,255,0.68)', textAlign: 'center', maxWidth: 580, margin: '0 0 36px', padding: '0 8px' }}>
-          Earny is your onchain CFO. Paste your wallet and see exactly how much you can earn monthly across the top Base protocols.
+          Earny is your onchain CFO. Paste your wallet and see exactly how much you can earn monthly.
         </p>
 
         <form
@@ -435,17 +444,11 @@ function ProtoCard({ p, rank, onOpen }: { p: Opportunity; rank: number; onOpen: 
 }
 
 // ── Calculator ────────────────────────────────────────────────────────────────
-function Calculator({ opportunities }: { opportunities: Opportunity[] }) {
+function Calculator({ allRates }: { allRates: Rate[] }) {
   const [raw, setRaw] = useState('')
   const isMobile = useIsMobile()
   const amount = parseFloat(raw.replace(/,/g, '')) || 0
-
-  const byProto = Object.values(
-    opportunities.reduce<Record<string, Opportunity>>((acc, o) => {
-      if (!acc[o.name] || o.yieldPct > acc[o.name].yieldPct) acc[o.name] = o
-      return acc
-    }, {})
-  ).sort((a, b) => b.yieldPct - a.yieldPct)
+  // allRates already sorted by APY desc, already deduped by name
 
   return (
     <div>
@@ -467,14 +470,15 @@ function Calculator({ opportunities }: { opportunities: Opportunity[] }) {
 
       {amount > 0 ? (
         <div style={{ marginTop: 20, display: 'flex', flexDirection: 'column', gap: 8 }}>
-          {byProto.map(o => {
-            const monthly = (amount * o.yieldPct) / 100 / 12
+          {allRates.map(r => {
+            const monthly = (amount * r.apy) / 100 / 12
+            const disc: Opportunity = { id: r.id, name: r.name, tagline: '', logo: r.logo, brand: r.brand, initials: r.initials, asset: r.asset, size: '', action: '', detail: '', yieldPct: r.apy, monthly, trust: 1, steps: [], link: '' }
             return (
-              <div key={o.id} style={{ display: 'flex', alignItems: 'center', gap: 14, padding: isMobile ? '14px 16px' : '14px 18px', background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.07)', borderRadius: 14 }}>
-                <ProtoDisc p={o} size={36}/>
+              <div key={r.id} style={{ display: 'flex', alignItems: 'center', gap: 14, padding: isMobile ? '14px 16px' : '14px 18px', background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.07)', borderRadius: 14 }}>
+                <ProtoDisc p={disc} size={36}/>
                 <div style={{ flex: 1, display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
-                  <span style={{ font: "600 15px/1 var(--font-display)", color: '#fff' }}>{o.name}</span>
-                  <span style={{ font: "500 13px/1 var(--font-display)", color: 'rgba(255,255,255,0.35)' }}>{o.yieldPct}% APY</span>
+                  <span style={{ font: "600 15px/1 var(--font-display)", color: '#fff' }}>{r.name}</span>
+                  <span style={{ font: "500 13px/1 var(--font-display)", color: 'rgba(255,255,255,0.35)' }}>{r.apy}% APY</span>
                 </div>
                 <div style={{ textAlign: 'right', flex: 'none' }}>
                   <div style={{ font: "400 22px/1 var(--font-serif)", color: BLUE_2 }}>+${monthly.toFixed(2)}</div>
@@ -486,10 +490,10 @@ function Calculator({ opportunities }: { opportunities: Opportunity[] }) {
           <div style={{ marginTop: 4, padding: '16px 18px', background: `linear-gradient(135deg, ${BLUE}22, ${BLUE_2}11)`, border: `1px solid ${BLUE_2}44`, borderRadius: 14, display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 12 }}>
             <div>
               <div style={{ font: "500 12px/1 var(--font-display)", color: SKY, letterSpacing: '0.12em', textTransform: 'uppercase', marginBottom: 6 }}>Best on ${Number(amount.toFixed(0)).toLocaleString()}</div>
-              <div style={{ font: "400 13px/1 var(--font-display)", color: 'rgba(255,255,255,0.5)' }}>{byProto[0]?.yieldPct}% APY · {byProto[0]?.name}</div>
+              <div style={{ font: "400 13px/1 var(--font-display)", color: 'rgba(255,255,255,0.5)' }}>{allRates[0]?.apy}% APY · {allRates[0]?.name}</div>
             </div>
             <div style={{ font: "400 32px/1 var(--font-serif)", color: '#fff' }}>
-              +${((amount * (byProto[0]?.yieldPct ?? 0)) / 100 / 12).toFixed(2)}<span style={{ font: "400 16px/1 var(--font-serif)", color: 'rgba(255,255,255,0.5)' }}>/mo</span>
+              +${((amount * (allRates[0]?.apy ?? 0)) / 100 / 12).toFixed(2)}<span style={{ font: "400 16px/1 var(--font-serif)", color: 'rgba(255,255,255,0.5)' }}>/mo</span>
             </div>
           </div>
         </div>
@@ -526,7 +530,6 @@ function Results({ result, onShare, onReset, onOpenProto, onShowCalc }: {
           <img src="/earny-logo-dark.svg" alt="Earny" style={{ height: 26, display: 'block' }}/>
         </button>
         <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
-          {!isMobile && <MiniPill/>}
           <AddrChip addr={address}/>
           <button onClick={onReset} style={linkBtnStyle}>New wallet</button>
         </div>
@@ -697,11 +700,11 @@ function ShareCard({ result }: { result: AnalyzeResult }) {
 }
 
 // ── Calc modal ────────────────────────────────────────────────────────────────
-function CalcModal({ opportunities, onClose }: { opportunities: Opportunity[]; onClose: () => void }) {
+function CalcModal({ allRates, onClose }: { allRates: Rate[]; onClose: () => void }) {
   const isMobile = useIsMobile()
   return (
     <div
-      style={{ position: 'fixed', inset: 0, background: 'rgba(10,11,26,0.7)', backdropFilter: 'blur(10px)', zIndex: 100, display: 'flex', alignItems: 'flex-end', justifyContent: 'center', animation: 'fadein .2s', padding: isMobile ? 0 : 40 }}
+      style={{ position: 'fixed', inset: 0, background: 'rgba(10,11,26,0.7)', backdropFilter: 'blur(10px)', zIndex: 100, display: 'flex', alignItems: isMobile ? 'flex-end' : 'center', justifyContent: 'center', animation: 'fadein .2s', padding: isMobile ? 0 : 40 }}
       onClick={onClose}
     >
       <div
@@ -719,7 +722,7 @@ function CalcModal({ opportunities, onClose }: { opportunities: Opportunity[]; o
           <p style={{ font: "400 14px/1.5 var(--font-display)", color: 'rgba(255,255,255,0.5)', margin: '0 0 24px' }}>
             Enter any amount to see monthly returns at today&apos;s live APYs across each protocol.
           </p>
-          <Calculator opportunities={opportunities}/>
+          <Calculator allRates={allRates}/>
         </div>
       </div>
     </div>
@@ -857,7 +860,7 @@ export default function Page() {
       {view === 'error' && <ErrorState message={errorMsg} onReset={reset}/>}
 
       {showShare && result && <ShareOverlay result={result} onClose={() => setShowShare(false)}/>}
-      {showCalc  && result && <CalcModal opportunities={result.opportunities} onClose={() => setShowCalc(false)}/>}
+      {showCalc  && result && <CalcModal allRates={result.allRates} onClose={() => setShowCalc(false)}/>}
       {proto && <ProtoDetail p={proto} onClose={() => setProto(null)}/>}
     </>
   )
