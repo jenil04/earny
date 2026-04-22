@@ -1,6 +1,7 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
+import type { Opportunity, AnalyzeResult } from '@/types'
 
 // ── Palette ──────────────────────────────────────────────────────────────────
 const INK       = '#0A0B1A'
@@ -16,54 +17,23 @@ const INK_MUTED = 'rgba(10,11,26,0.62)'
 const INK_DIM   = 'rgba(10,11,26,0.38)'
 const GREEN     = '#10B981'
 
-// ── Data ─────────────────────────────────────────────────────────────────────
-interface Protocol {
-  id: string
-  name: string
-  tagline: string
-  brand: string
-  initials: string
-  asset: string
-  size: string
-  action: string
-  detail: string
-  yieldPct: number
-  monthly: number
-  trust: number
-  steps: string[]
-  link: string
-}
-
-const PROTOS: Protocol[] = [
-  { id:'arma',     name:'ARMA',        tagline:'Automated yield router on Base',    brand:'#B6E02A', initials:'AR', asset:'USDC',  size:'1,240 USDC', action:"Route 1,240 USDC into ARMA's top USDC vault",     detail:'ARMA moves your stablecoins between the best-yielding vaults on Base automatically. Set and forget.', yieldPct:14.8, monthly:15.30, trust:2, steps:['Open arma.xyz and connect','Pick the USDC smart vault','Deposit — ARMA does the rest'],                         link:'https://arma.xyz' },
-  { id:'aave',     name:'Aave v3',     tagline:'The original lending market',       brand:'#B6509E', initials:'AA', asset:'USDbC', size:'820 USDbC',   action:'Supply 820 USDbC at variable rate',                detail:'The largest, most battle-tested lending market in DeFi. Lower APY but virtually bulletproof.',       yieldPct:5.1,  monthly:41.85, trust:3, steps:['Open Aave on Base','Supply USDbC','Earn — or borrow against it later'],                                link:'https://aave.com' },
-  { id:'compound', name:'Compound v3', tagline:'Simple, safe lending',              brand:'#D26CAD', initials:'CO', asset:'USDC',  size:'640 USDC',    action:'Supply 640 USDC to the Base market',               detail:'Single-asset borrow markets. Less flexible than Aave but simpler risk profile.',                     yieldPct:6.2,  monthly:33.07, trust:3, steps:['Open Compound v3','Select the Base USDC market','Supply and start earning'],                          link:'https://app.compound.finance' },
-  { id:'fluid',    name:'Fluid',       tagline:'Next-gen lending + DEX',            brand:'#5DD4D1', initials:'FL', asset:'ETH',   size:'0.48 ETH',    action:'Supply 0.48 ETH to the Fluid ETH vault',           detail:'Fluid combines lending and AMM liquidity for higher effective yield. Newer protocol — solid audits.', yieldPct:8.9,  monthly:71.20, trust:2, steps:['Open fluid.instadapp.io','Pick the ETH vault','Deposit ETH'],                                        link:'https://fluid.instadapp.io' },
-  { id:'morpho',   name:'Morpho',      tagline:'Peer-matched lending, better rates', brand:'#2E6CF6',initials:'MO', asset:'ETH',   size:'0.48 ETH',    action:'Lend 0.48 ETH in the Blue ETH-USDC vault',         detail:'Morpho pairs lenders and borrowers directly so you get better rates than plain Aave or Compound.',    yieldPct:6.4,  monthly:61.30, trust:3, steps:['Open Morpho Blue','Pick the ETH-USDC vault','Deposit — interest accrues every block'],             link:'https://morpho.org' },
-  { id:'moonwell', name:'Moonwell',    tagline:'Base-native lending with rewards',  brand:'#C07A4B', initials:'MW', asset:'USDC',  size:'520 USDC',    action:'Supply 520 USDC and collect WELL rewards',         detail:'Extra APY from WELL token rewards on top of the base interest rate.',                                yieldPct:7.4,  monthly:32.06, trust:2, steps:['Open moonwell.fi on Base','Supply USDC','Claim WELL rewards weekly'],                                link:'https://moonwell.fi' },
-  { id:'seamless', name:'Seamless',    tagline:'Native Base lending',               brand:'#82B8C2', initials:'SE', asset:'USDbC', size:'300 USDbC',   action:'Supply 300 USDbC + earn SEAM',                     detail:'Base-native fork of Aave with SEAM token incentives for early users.',                               yieldPct:8.2,  monthly:20.50, trust:1, steps:['Open seamlessprotocol.com','Supply USDbC','Collect SEAM emissions'],                                 link:'https://seamlessprotocol.com' },
-  { id:'ample',    name:'Ample.money', tagline:'Highest stablecoin yield on Base',  brand:'#F26B3A', initials:'AM', asset:'USDC',  size:'400 USDC',    action:"Deposit 400 USDC into Ample's aUSDC vault",        detail:'Ample routes into the highest-yielding venues on Base, rebalancing daily. Higher returns, newer protocol.', yieldPct:16.4, monthly:54.67, trust:3, steps:['Open ample.money','Pick the aUSDC vault','Deposit USDC'],                                          link:'https://ample.money' },
-].filter(p => p.monthly >= 5)
-
-const TOTAL = PROTOS.reduce((s, p) => s + p.monthly, 0)
-const TOTAL_ROUNDED = Math.round(TOTAL)
-
-function categoryFor(amount: number) {
-  if (amount < 50)   return { tier: 'Sleeper' }
-  if (amount < 150)  return { tier: 'Idle Earner' }
-  if (amount < 400)  return { tier: 'Yield Curious' }
-  if (amount < 1000) return { tier: 'Onchain Saver' }
-  if (amount < 3000) return { tier: 'DeFi Native' }
-  return               { tier: 'Whale Asleep' }
-}
-
+// ── Helpers ───────────────────────────────────────────────────────────────────
 function formatAddr(a: string) {
   if (!a) return '—'
   if (a.startsWith('0x') && a.length > 12) return a.slice(0, 10) + '…' + a.slice(-6)
   return a
 }
 
-// ── Shared button styles ──────────────────────────────────────────────────────
+function categoryFor(monthly: number) {
+  if (monthly < 50)   return 'Sleeper'
+  if (monthly < 150)  return 'Idle Earner'
+  if (monthly < 400)  return 'Yield Curious'
+  if (monthly < 1000) return 'Onchain Saver'
+  if (monthly < 3000) return 'DeFi Native'
+  return 'Whale Asleep'
+}
+
+// ── Shared styles ─────────────────────────────────────────────────────────────
 const primaryBtnStyle: React.CSSProperties = {
   font: "600 16px/1 var(--font-display)", background: BLUE, color: '#fff',
   border: 'none', padding: '16px 24px', borderRadius: 999, cursor: 'pointer',
@@ -72,8 +42,8 @@ const primaryBtnStyle: React.CSSProperties = {
 }
 const secondaryBtnStyle: React.CSSProperties = {
   font: "600 16px/1 var(--font-display)", background: '#fff', color: INK,
-  border: `1px solid rgba(10,11,26,0.12)`, padding: '16px 24px', borderRadius: 999, cursor: 'pointer',
-  display: 'inline-flex', alignItems: 'center', gap: 10,
+  border: `1px solid rgba(10,11,26,0.12)`, padding: '16px 24px', borderRadius: 999,
+  cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: 10,
 }
 const shareBtnStyle: React.CSSProperties = {
   font: "600 14px/1 var(--font-display)", background: '#fff', color: INK,
@@ -128,7 +98,6 @@ function AuraBlob() {
 function Pulse() {
   return <span style={{ width: 8, height: 8, background: '#fff', borderRadius: 999, animation: 'pulse 1s infinite', display: 'inline-block' }}/>
 }
-
 function AnimatedNumber({ value }: { value: number }) {
   const [n, setN] = useState(0)
   useEffect(() => {
@@ -137,8 +106,7 @@ function AnimatedNumber({ value }: { value: number }) {
     let raf: number
     const tick = (now: number) => {
       const p = Math.min(1, (now - start) / DUR)
-      const eased = 1 - Math.pow(1 - p, 3)
-      setN(value * eased)
+      setN(value * (1 - Math.pow(1 - p, 3)))
       if (p < 1) raf = requestAnimationFrame(tick)
     }
     raf = requestAnimationFrame(tick)
@@ -147,16 +115,13 @@ function AnimatedNumber({ value }: { value: number }) {
   return <span style={{ fontVariantNumeric: 'tabular-nums' }}>{n.toFixed(2)}</span>
 }
 
-function ProtoDisc({ p, size = 44 }: { p: Protocol; size?: number }) {
+function ProtoDisc({ p, size = 44 }: { p: Opportunity; size?: number }) {
   return (
     <div style={{
       width: size, height: size, borderRadius: 999,
-      background: p.brand, color: '#fff',
-      display: 'grid', placeItems: 'center',
+      background: p.brand, color: '#fff', display: 'grid', placeItems: 'center',
       font: `700 ${Math.round(size * 0.36)}px/1 var(--font-display)`,
-      letterSpacing: '-0.02em',
-      boxShadow: 'inset 0 -2px 0 rgba(0,0,0,0.12)',
-      flex: 'none',
+      letterSpacing: '-0.02em', boxShadow: 'inset 0 -2px 0 rgba(0,0,0,0.12)', flex: 'none',
     }}>
       {p.initials}
     </div>
@@ -164,9 +129,9 @@ function ProtoDisc({ p, size = 44 }: { p: Protocol; size?: number }) {
 }
 
 function TrustMeter({ level }: { level: number }) {
-  const labels = ['Low', 'Medium', 'High']
   const colors = ['#E08A45', '#E6B93A', '#10B981']
-  const c = colors[level - 1]
+  const labels = ['Low', 'Medium', 'High']
+  const c = colors[Math.min(level - 1, 2)]
   return (
     <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
       <div style={{ display: 'flex', gap: 3, alignItems: 'flex-end' }}>
@@ -174,7 +139,7 @@ function TrustMeter({ level }: { level: number }) {
           <div key={i} style={{ width: 5, height: 6 + i * 4, borderRadius: 2, background: i <= level ? c : 'rgba(10,11,26,0.12)' }}/>
         ))}
       </div>
-      <span style={{ font: "600 13px/1 var(--font-display)", color: c }}>{labels[level - 1]}</span>
+      <span style={{ font: "600 13px/1 var(--font-display)", color: c }}>{labels[Math.min(level - 1, 2)]}</span>
     </div>
   )
 }
@@ -182,9 +147,8 @@ function TrustMeter({ level }: { level: number }) {
 function AddrChip({ addr }: { addr: string }) {
   return (
     <div style={{
-      display: 'flex', alignItems: 'center', gap: 8,
-      padding: '10px 16px', background: '#fff',
-      border: `1px solid rgba(10,11,26,0.08)`, borderRadius: 999,
+      display: 'flex', alignItems: 'center', gap: 8, padding: '10px 16px',
+      background: '#fff', border: `1px solid rgba(10,11,26,0.08)`, borderRadius: 999,
       font: "500 14px/1 var(--font-display)",
     }}>
       <span style={{ width: 8, height: 8, background: GREEN, borderRadius: 999 }}/>
@@ -208,19 +172,11 @@ function MiniPill({ dark = false }: { dark?: boolean }) {
   const text   = dark ? 'rgba(255,255,255,0.9)'  : INK
   const link   = dark ? '#A3E9C9'                 : '#0B7A4E'
   return (
-    <a
-      href="https://clanker.world/clanker/0x534b7aAD1Cdb6F02eC48CAbe428f0D9131E40B07"
-      target="_blank" rel="noopener noreferrer"
-      style={{
-        display: 'inline-flex', alignItems: 'center', gap: 10,
-        padding: '9px 18px', background: bg,
-        border: `1.5px solid ${border}`, borderRadius: 999,
-        font: "700 12px/1 var(--font-display)", letterSpacing: '0.1em',
-        color: text, textDecoration: 'none', whiteSpace: 'nowrap',
-      }}
-    >
+    <a href="https://clanker.world/clanker/0x534b7aAD1Cdb6F02eC48CAbe428f0D9131E40B07"
+       target="_blank" rel="noopener noreferrer"
+       style={{ display: 'inline-flex', alignItems: 'center', gap: 10, padding: '9px 18px', background: bg, border: `1.5px solid ${border}`, borderRadius: 999, font: "700 12px/1 var(--font-display)", letterSpacing: '0.1em', color: text, textDecoration: 'none', whiteSpace: 'nowrap' }}>
       <span style={{ width: 8, height: 8, background: GREEN, borderRadius: 999, boxShadow: `0 0 0 3px ${dark ? 'rgba(16,185,129,0.2)' : 'rgba(16,185,129,0.15)'}` }}/>
-      <span style={{ color: link, textDecoration: 'underline', textUnderlineOffset: 2, textDecorationThickness: 1.5 }}>MINI</span>
+      <span style={{ color: link, textDecoration: 'underline', textUnderlineOffset: 2 }}>MINI</span>
       <span>IS THE ONLY OFFICIAL TOKEN.</span>
     </a>
   )
@@ -231,16 +187,10 @@ function SiteFooter({ dark = true }: { dark?: boolean }) {
   const fgStrong = dark ? 'rgba(255,255,255,0.9)'  : INK
   const border   = dark ? 'rgba(255,255,255,0.08)' : 'rgba(10,11,26,0.08)'
   return (
-    <footer style={{
-      padding: '32px 40px', borderTop: `1px solid ${border}`,
-      display: 'flex', flexWrap: 'wrap', gap: 24,
-      justifyContent: 'space-between', alignItems: 'center',
-      font: "400 13px/1.4 var(--font-display)", color: fg,
-    }}>
+    <footer style={{ padding: '32px 40px', borderTop: `1px solid ${border}`, display: 'flex', flexWrap: 'wrap', gap: 24, justifyContent: 'space-between', alignItems: 'center', font: "400 13px/1.4 var(--font-display)", color: fg }}>
       <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
         <span>Built by</span>
-        <a href="https://x.com/jenilt" target="_blank" rel="noopener noreferrer"
-           style={{ color: fgStrong, textDecoration: 'none', fontWeight: 600 }}>@jenilt</a>
+        <a href="https://x.com/jenilt" target="_blank" rel="noopener noreferrer" style={{ color: fgStrong, textDecoration: 'none', fontWeight: 600 }}>@jenilt</a>
       </div>
       <div>earny.chat — read-only, never moves your funds.</div>
     </footer>
@@ -263,11 +213,7 @@ function Landing({ onAnalyze }: { onAnalyze: (addr: string) => void }) {
   const valid = /^0x[a-fA-F0-9]{40}$/.test(addr.trim())
 
   return (
-    <div style={{
-      minHeight: '100vh', background: INK, color: '#fff',
-      fontFamily: "var(--font-display)",
-      display: 'flex', flexDirection: 'column', position: 'relative', overflow: 'hidden',
-    }}>
+    <div style={{ minHeight: '100vh', background: INK, color: '#fff', fontFamily: "var(--font-display)", display: 'flex', flexDirection: 'column', position: 'relative', overflow: 'hidden' }}>
       <GridBackdrop/>
       <AuraBlob/>
 
@@ -282,55 +228,31 @@ function Landing({ onAnalyze }: { onAnalyze: (addr: string) => void }) {
       <main style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: '32px 24px 80px', position: 'relative', zIndex: 2 }}>
         <MiniPill dark/>
 
-        <h1 style={{
-          font: "400 clamp(48px, 6.5vw, 96px)/1.05 var(--font-serif)",
-          letterSpacing: '-0.02em', textAlign: 'center', margin: '28px 0 36px', maxWidth: 1100,
-        }}>
-          <span style={{ whiteSpace: 'nowrap' }}>
-            You&apos;re leaving <em style={{ color: BLUE_2, fontStyle: 'italic', letterSpacing: '0.04em' }}>$ _____</em>
-          </span>
+        <h1 style={{ font: "400 clamp(48px, 6.5vw, 96px)/1.05 var(--font-serif)", letterSpacing: '-0.02em', textAlign: 'center', margin: '28px 0 36px', maxWidth: 1100 }}>
+          <span style={{ whiteSpace: 'nowrap' }}>You&apos;re leaving <em style={{ color: BLUE_2, fontStyle: 'italic', letterSpacing: '0.04em' }}>$ _____</em></span>
           <br/>
           <span style={{ whiteSpace: 'nowrap' }}>on the table every month.</span>
         </h1>
 
-        <p style={{
-          font: "400 clamp(18px, 1.8vw, 22px)/1.45 var(--font-display)",
-          color: 'rgba(255,255,255,0.68)', textAlign: 'center', maxWidth: 620, margin: '0 0 44px',
-        }}>
-          Earny is your onchain CFO. Paste your wallet and let Earny tell you exactly how much you can earn monthly.
+        <p style={{ font: "400 clamp(18px, 1.8vw, 22px)/1.45 var(--font-display)", color: 'rgba(255,255,255,0.68)', textAlign: 'center', maxWidth: 620, margin: '0 0 44px' }}>
+          Earny is your onchain CFO. Paste your wallet and see exactly how much you can earn monthly across the top Base protocols.
         </p>
 
         <form
           onSubmit={(e) => { e.preventDefault(); if (valid) onAnalyze(addr.trim()) }}
-          style={{
-            display: 'flex', gap: 8, padding: 8, background: '#fff', borderRadius: 999,
-            boxShadow: '0 30px 80px rgba(25,109,253,0.22), 0 2px 0 rgba(255,255,255,0.4) inset',
-            width: 'min(640px, 92vw)',
-          }}
+          style={{ display: 'flex', gap: 8, padding: 8, background: '#fff', borderRadius: 999, boxShadow: '0 30px 80px rgba(25,109,253,0.22), 0 2px 0 rgba(255,255,255,0.4) inset', width: 'min(640px, 92vw)' }}
         >
-          <div style={{ display: 'flex', alignItems: 'center', paddingLeft: 20, color: INK_MUTED }}>
-            <WalletGlyph/>
-          </div>
+          <div style={{ display: 'flex', alignItems: 'center', paddingLeft: 20, color: INK_MUTED }}><WalletGlyph/></div>
           <input
             value={addr}
             onChange={(e) => setAddr(e.target.value)}
             placeholder="paste a wallet address (0x…)"
-            style={{
-              flex: 1, border: 'none', outline: 'none', background: 'transparent',
-              font: "500 18px/1 var(--font-display)", color: INK, padding: '0 4px', minWidth: 0,
-            }}
+            style={{ flex: 1, border: 'none', outline: 'none', background: 'transparent', font: "500 18px/1 var(--font-display)", color: INK, padding: '0 4px', minWidth: 0 }}
           />
           <button
             type="submit"
             disabled={!valid}
-            style={{
-              border: 'none', cursor: valid ? 'pointer' : 'not-allowed',
-              background: valid ? BLUE : '#CFD7E5', color: '#fff',
-              font: "600 16px/1 var(--font-display)", padding: '0 28px',
-              borderRadius: 999, height: 52,
-              display: 'flex', alignItems: 'center', gap: 8,
-              transition: 'transform .15s, background .15s',
-            }}
+            style={{ border: 'none', cursor: valid ? 'pointer' : 'not-allowed', background: valid ? BLUE : '#CFD7E5', color: '#fff', font: "600 16px/1 var(--font-display)", padding: '0 28px', borderRadius: 999, height: 52, display: 'flex', alignItems: 'center', gap: 8, transition: 'transform .15s, background .15s' }}
             onMouseDown={(e) => { e.currentTarget.style.transform = 'scale(0.97)' }}
             onMouseUp={(e)   => { e.currentTarget.style.transform = '' }}
             onMouseLeave={(e)=> { e.currentTarget.style.transform = '' }}
@@ -341,37 +263,15 @@ function Landing({ onAnalyze }: { onAnalyze: (addr: string) => void }) {
 
         <button
           onClick={() => onAnalyze('0xd8dA6BF26964aF9D7eEd9e03E53415D37aA96045')}
-          style={{
-            marginTop: 18, background: 'transparent', color: 'rgba(255,255,255,0.55)',
-            border: 'none', font: "500 14px/1 var(--font-display)", cursor: 'pointer',
-            textDecoration: 'underline', textUnderlineOffset: 4,
-          }}
+          style={{ marginTop: 18, background: 'transparent', color: 'rgba(255,255,255,0.55)', border: 'none', font: "500 14px/1 var(--font-display)", cursor: 'pointer', textDecoration: 'underline', textUnderlineOffset: 4 }}
         >
           or try a sample wallet →
         </button>
 
-        <div id="protocols" style={{ marginTop: 88, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 20 }}>
-          <div style={{ font: "500 12px/1 var(--font-display)", color: 'rgba(255,255,255,0.4)', letterSpacing: '0.18em', textTransform: 'uppercase' }}>
-            Matched to the protocols we trust
-          </div>
-          <div style={{ display: 'flex', gap: 14, flexWrap: 'wrap', justifyContent: 'center', maxWidth: 780 }}>
-            {PROTOS.map(p => (
-              <div key={p.id} style={{
-                display: 'flex', alignItems: 'center', gap: 10,
-                padding: '10px 16px 10px 10px',
-                background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.08)',
-                borderRadius: 999, font: "600 15px/1 var(--font-display)", color: 'rgba(255,255,255,0.9)',
-              }}>
-                <ProtoDisc p={p} size={26}/>{p.name}
-              </div>
-            ))}
-          </div>
-        </div>
-
         <div id="how" style={{ marginTop: 100, display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 16, maxWidth: 980, width: '100%' }}>
-          <HowStep n="01" title="Paste your wallet"       body="No signing, no connecting. Earny only reads public onchain data."/>
-          <HowStep n="02" title="See what you're missing" body="Every idle asset gets matched with the best yield on Base."/>
-          <HowStep n="03" title="Start earning"           body="One-tap links straight to the source. You stay in control."/>
+          <HowStep n="01" title="Paste your wallet"       body="No signing, no connecting. Earny reads public onchain balances on Base."/>
+          <HowStep n="02" title="See what you're missing" body="Every idle asset gets matched with live APYs from the top Base protocols."/>
+          <HowStep n="03" title="Start earning"           body="One-tap links to each protocol. You sign every transaction yourself."/>
         </div>
       </main>
 
@@ -381,32 +281,50 @@ function Landing({ onAnalyze }: { onAnalyze: (addr: string) => void }) {
 }
 
 // ── Analyzing ─────────────────────────────────────────────────────────────────
-function Analyzing({ addr, onDone }: { addr: string; onDone: () => void }) {
-  const [step, setStep] = useState(0)
-  const steps = [
-    'Reading your wallet',
-    'Checking token balances',
-    'Scanning yield opportunities',
-    'Finding unclaimed rewards',
-    "Tallying what you're missing",
-  ]
+const ANALYZE_STEPS = [
+  'Reading wallet balances on Base',
+  'Fetching live protocol APYs',
+  'Matching assets to opportunities',
+  'Calculating monthly yield',
+  'Building your report',
+]
 
+function Analyzing({ addr, onDone, onError }: { addr: string; onDone: (r: AnalyzeResult) => void; onError: (msg: string) => void }) {
+  const [step, setStep] = useState(0)
+  const [result, setResult] = useState<AnalyzeResult | null>(null)
+  const calledDone = useRef(false)
+
+  // Step animation — independent of fetch
   useEffect(() => {
-    if (step >= steps.length) {
-      const t = setTimeout(onDone, 500)
-      return () => clearTimeout(t)
-    }
-    const t = setTimeout(() => setStep(s => s + 1), 650)
+    if (step >= ANALYZE_STEPS.length) return
+    const t = setTimeout(() => setStep(s => s + 1), 700)
     return () => clearTimeout(t)
-  }, [step, steps.length, onDone])
+  }, [step])
+
+  // Proceed once both animation finished and result is ready
+  useEffect(() => {
+    if (step >= ANALYZE_STEPS.length && result && !calledDone.current) {
+      calledDone.current = true
+      setTimeout(() => onDone(result), 300)
+    }
+  }, [step, result, onDone])
+
+  // Fetch
+  useEffect(() => {
+    const ctrl = new AbortController()
+    fetch(`/api/analyze?address=${encodeURIComponent(addr)}`, { signal: ctrl.signal })
+      .then(r => {
+        if (!r.ok) return r.json().then(e => Promise.reject(new Error(e.error || 'Analysis failed')))
+        return r.json() as Promise<AnalyzeResult>
+      })
+      .then(data => { if (!ctrl.signal.aborted) setResult(data) })
+      .catch(err => { if (!ctrl.signal.aborted) onError(err.message) })
+    return () => ctrl.abort()
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [addr])
 
   return (
-    <div style={{
-      minHeight: '100vh', background: INK, color: '#fff',
-      fontFamily: "var(--font-display)",
-      display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
-      padding: 40, gap: 40, position: 'relative', overflow: 'hidden',
-    }}>
+    <div style={{ minHeight: '100vh', background: INK, color: '#fff', fontFamily: "var(--font-display)", display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: 40, position: 'relative', overflow: 'hidden' }}>
       <GridBackdrop/>
       <AuraBlob/>
       <div style={{ position: 'relative', zIndex: 2, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 36 }}>
@@ -417,20 +335,9 @@ function Analyzing({ addr, onDone }: { addr: string; onDone: () => void }) {
           </span>
         </div>
         <ul style={{ listStyle: 'none', padding: 0, margin: 0, display: 'flex', flexDirection: 'column', gap: 14, minWidth: 360 }}>
-          {steps.map((s, i) => (
-            <li key={i} style={{
-              display: 'flex', alignItems: 'center', gap: 14,
-              font: "500 17px/1.3 var(--font-display)",
-              color: i < step ? '#fff' : 'rgba(255,255,255,0.35)',
-              transition: 'color .3s',
-            }}>
-              <span style={{
-                width: 22, height: 22, borderRadius: 999, flex: 'none',
-                display: 'grid', placeItems: 'center',
-                background: i < step ? BLUE_2 : 'rgba(255,255,255,0.08)',
-                color: '#fff', font: "700 12px/1 var(--font-display)",
-                transition: 'background .3s',
-              }}>
+          {ANALYZE_STEPS.map((s, i) => (
+            <li key={i} style={{ display: 'flex', alignItems: 'center', gap: 14, font: "500 17px/1.3 var(--font-display)", color: i < step ? '#fff' : 'rgba(255,255,255,0.35)', transition: 'color .3s' }}>
+              <span style={{ width: 22, height: 22, borderRadius: 999, flex: 'none', display: 'grid', placeItems: 'center', background: i < step ? BLUE_2 : 'rgba(255,255,255,0.08)', color: '#fff', font: "700 12px/1 var(--font-display)", transition: 'background .3s' }}>
                 {i < step ? '✓' : i === step ? <Pulse/> : ''}
               </span>
               {s}
@@ -443,25 +350,14 @@ function Analyzing({ addr, onDone }: { addr: string; onDone: () => void }) {
 }
 
 // ── Proto card ────────────────────────────────────────────────────────────────
-function ProtoCard({ p, rank, onOpen }: { p: Protocol; rank: number; onOpen: () => void }) {
+function ProtoCard({ p, rank, onOpen }: { p: Opportunity; rank: number; onOpen: () => void }) {
   const [hover, setHover] = useState(false)
   return (
     <button
       onClick={onOpen}
       onMouseEnter={() => setHover(true)}
       onMouseLeave={() => setHover(false)}
-      style={{
-        display: 'grid',
-        gridTemplateColumns: '36px 56px 1.5fr 110px 140px 150px 24px',
-        gap: 20, alignItems: 'center', padding: '18px 24px',
-        background: '#fff', borderRadius: 16,
-        border: `1px solid ${hover ? BLUE : 'rgba(10,11,26,0.06)'}`,
-        textAlign: 'left', color: 'inherit',
-        transition: 'border-color .15s, transform .15s, box-shadow .15s',
-        transform: hover ? 'translateX(4px)' : 'none',
-        boxShadow: hover ? '0 8px 24px rgba(25,109,253,0.08)' : 'none',
-        cursor: 'pointer', width: '100%',
-      }}
+      style={{ display: 'grid', gridTemplateColumns: '36px 56px 1.5fr 110px 140px 150px 24px', gap: 20, alignItems: 'center', padding: '18px 24px', background: '#fff', borderRadius: 16, border: `1px solid ${hover ? BLUE : 'rgba(10,11,26,0.06)'}`, textAlign: 'left', color: 'inherit', transition: 'border-color .15s, transform .15s, box-shadow .15s', transform: hover ? 'translateX(4px)' : 'none', boxShadow: hover ? '0 8px 24px rgba(25,109,253,0.08)' : 'none', cursor: 'pointer', width: '100%' }}
     >
       <div style={{ font: "500 14px/1 var(--font-display)", color: INK_DIM }}>#{String(rank).padStart(2, '0')}</div>
       <ProtoDisc p={p} size={44}/>
@@ -470,7 +366,7 @@ function ProtoCard({ p, rank, onOpen }: { p: Protocol; rank: number; onOpen: () 
         <div style={{ font: "400 14px/1.4 var(--font-display)", color: INK_MUTED }}>{p.action}</div>
       </div>
       <div>
-        <div style={{ font: "500 11px/1 var(--font-display)", color: INK_DIM, letterSpacing: '0.12em', textTransform: 'uppercase', marginBottom: 6 }}>Yield</div>
+        <div style={{ font: "500 11px/1 var(--font-display)", color: INK_DIM, letterSpacing: '0.12em', textTransform: 'uppercase', marginBottom: 6 }}>APY</div>
         <div style={{ font: "400 22px/1 var(--font-serif)", color: INK }}>{p.yieldPct}%</div>
       </div>
       <div>
@@ -487,12 +383,14 @@ function ProtoCard({ p, rank, onOpen }: { p: Protocol; rank: number; onOpen: () 
 }
 
 // ── Results ───────────────────────────────────────────────────────────────────
-function Results({ addr, onShare, onReset, onOpenProto }: {
-  addr: string
+function Results({ result, onShare, onReset, onOpenProto }: {
+  result: AnalyzeResult
   onShare: () => void
   onReset: () => void
-  onOpenProto: (p: Protocol) => void
+  onOpenProto: (p: Opportunity) => void
 }) {
+  const { address, opportunities, totalMonthly } = result
+
   return (
     <div style={{ minHeight: '100vh', background: CREAM, color: INK, fontFamily: "var(--font-display)" }}>
       <header style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '24px 40px', borderBottom: `1px solid rgba(10,11,26,0.06)` }}>
@@ -502,51 +400,62 @@ function Results({ addr, onShare, onReset, onOpenProto }: {
         </button>
         <div style={{ display: 'flex', gap: 10, alignItems: 'center' }}>
           <MiniPill/>
-          <AddrChip addr={addr}/>
+          <AddrChip addr={address}/>
           <button onClick={onReset} style={linkBtnStyle}>New wallet</button>
         </div>
       </header>
 
       <section style={{ padding: '64px 40px 40px', maxWidth: 1200, margin: '0 auto' }}>
         <div style={{ font: "500 13px/1 var(--font-display)", color: BLUE, letterSpacing: '0.14em', textTransform: 'uppercase', marginBottom: 20 }}>
-          Based on what this wallet holds
+          Based on your Base wallet holdings
         </div>
-        <h1 style={{
-          font: "400 clamp(96px, 13vw, 180px)/1 var(--font-serif)",
-          letterSpacing: '-0.02em', margin: 0, color: INK,
-          display: 'flex', alignItems: 'baseline', gap: 8,
-        }}>
-          <span style={{ font: 'inherit', color: INK_DIM, fontSize: '0.46em' }}>$</span>
-          <AnimatedNumber value={TOTAL}/>
-        </h1>
-        <div style={{ marginTop: 10, font: "400 clamp(36px, 4.2vw, 64px)/1 var(--font-serif)", color: INK_MUTED, fontStyle: 'italic', letterSpacing: '-0.02em' }}>/mo</div>
-        <p style={{ font: "400 20px/1.5 var(--font-display)", color: INK_MUTED, marginTop: 20, maxWidth: 680 }}>
-          That&apos;s what your assets <em style={{ fontFamily: "var(--font-serif)", fontStyle: 'italic', color: INK, fontSize: 22 }}>could</em> be earning each month if every holding was routed to the best spot. Read-only — nothing to sign, nothing moves.
-        </p>
-        <div style={{ display: 'flex', gap: 12, marginTop: 32, flexWrap: 'wrap' }}>
-          <button onClick={onShare} style={primaryBtnStyle}><ShareIcon/> Share</button>
-          <button onClick={() => alert('Chat with Earny — coming soon.')} style={secondaryBtnStyle}><ChatIcon/> Chat with Earny</button>
-        </div>
+
+        {opportunities.length === 0 ? (
+          <div style={{ padding: '60px 0', textAlign: 'center' }}>
+            <h1 style={{ font: "400 48px/1.1 var(--font-serif)", margin: '0 0 16px' }}>No opportunities found</h1>
+            <p style={{ font: "400 18px/1.5 var(--font-display)", color: INK_MUTED, maxWidth: 480, margin: '0 auto' }}>
+              This wallet has no USDC, USDbC, or ETH on Base — or balances are below $1. Try a different wallet, or bridge assets to Base first.
+            </p>
+          </div>
+        ) : (
+          <>
+            <h1 style={{ font: "400 clamp(96px, 13vw, 180px)/1 var(--font-serif)", letterSpacing: '-0.02em', margin: 0, color: INK, display: 'flex', alignItems: 'baseline', gap: 8 }}>
+              <span style={{ font: 'inherit', color: INK_DIM, fontSize: '0.46em' }}>$</span>
+              <AnimatedNumber value={totalMonthly}/>
+            </h1>
+            <div style={{ marginTop: 10, font: "400 clamp(36px, 4.2vw, 64px)/1 var(--font-serif)", color: INK_MUTED, fontStyle: 'italic', letterSpacing: '-0.02em' }}>/mo</div>
+            <p style={{ font: "400 20px/1.5 var(--font-display)", color: INK_MUTED, marginTop: 20, maxWidth: 680 }}>
+              That&apos;s what your assets <em style={{ fontFamily: "var(--font-serif)", fontStyle: 'italic', color: INK, fontSize: 22 }}>could</em> be earning each month based on live APYs. Read-only — nothing to sign, nothing moves.
+            </p>
+            <div style={{ display: 'flex', gap: 12, marginTop: 32, flexWrap: 'wrap' }}>
+              <button onClick={onShare} style={primaryBtnStyle}><ShareIcon/> Share</button>
+              <button onClick={() => alert('Chat with Earny — coming soon.')} style={secondaryBtnStyle}><ChatIcon/> Chat with Earny</button>
+            </div>
+          </>
+        )}
       </section>
 
-      <section style={{ padding: '24px 40px 80px', maxWidth: 1200, margin: '0 auto' }}>
-        <h2 style={{ font: "400 clamp(32px, 3.2vw, 44px)/1.1 var(--font-serif)", letterSpacing: '-0.01em', margin: '0 0 8px' }}>Where the money is</h2>
-        <div style={{ font: "500 14px/1 var(--font-display)", color: INK_DIM, marginBottom: 24 }}>Top {PROTOS.length} opportunities · tap any card to see how</div>
-        <div style={{ display: 'grid', gap: 12 }}>
-          {PROTOS.map((p, i) => <ProtoCard key={p.id} p={p} rank={i + 1} onOpen={() => onOpenProto(p)}/>)}
-        </div>
-        <div style={{ marginTop: 40, padding: 24, background: PAPER, borderRadius: 20, border: `1px solid ${BLUE_SOFT}`, display: 'flex', gap: 16, alignItems: 'flex-start' }}>
-          <div style={{ flex: 'none', width: 40, height: 40, borderRadius: 999, background: BLUE_TINT, display: 'grid', placeItems: 'center', color: BLUE }}>
-            <InfoIcon/>
+      {opportunities.length > 0 && (
+        <section style={{ padding: '24px 40px 80px', maxWidth: 1200, margin: '0 auto' }}>
+          <h2 style={{ font: "400 clamp(32px, 3.2vw, 44px)/1.1 var(--font-serif)", letterSpacing: '-0.01em', margin: '0 0 8px' }}>Where the money is</h2>
+          <div style={{ font: "500 14px/1 var(--font-display)", color: INK_DIM, marginBottom: 24 }}>
+            {opportunities.length} live {opportunities.length === 1 ? 'opportunity' : 'opportunities'} · APYs refresh every 15 min
           </div>
-          <div>
-            <div style={{ font: "600 15px/1.3 var(--font-display)", marginBottom: 4 }}>How we got this number</div>
-            <div style={{ font: "400 14px/1.5 var(--font-display)", color: INK_MUTED, maxWidth: 760 }}>
-              We read your token balances onchain, then match each asset to the best yield across the protocols we trust. Rates refresh every 15 minutes. Earny never moves your money — you decide what to do.
+          <div style={{ display: 'grid', gap: 12 }}>
+            {opportunities.map((p, i) => <ProtoCard key={p.id} p={p} rank={i + 1} onOpen={() => onOpenProto(p)}/>)}
+          </div>
+
+          <div style={{ marginTop: 40, padding: 24, background: PAPER, borderRadius: 20, border: `1px solid ${BLUE_SOFT}`, display: 'flex', gap: 16, alignItems: 'flex-start' }}>
+            <div style={{ flex: 'none', width: 40, height: 40, borderRadius: 999, background: BLUE_TINT, display: 'grid', placeItems: 'center', color: BLUE }}><InfoIcon/></div>
+            <div>
+              <div style={{ font: "600 15px/1.3 var(--font-display)", marginBottom: 4 }}>How we calculate this</div>
+              <div style={{ font: "400 14px/1.5 var(--font-display)", color: INK_MUTED, maxWidth: 760 }}>
+                We read your token balances directly from Base chain, then fetch live APYs from DefiLlama. Monthly = <code style={{ fontFamily: 'monospace', background: 'rgba(0,0,0,0.05)', padding: '1px 5px', borderRadius: 4 }}>balance × APY ÷ 12</code>. Earny never moves your money — you decide what to do.
+              </div>
             </div>
           </div>
-        </div>
-      </section>
+        </section>
+      )}
 
       <SiteFooter dark={false}/>
     </div>
@@ -554,12 +463,9 @@ function Results({ addr, onShare, onReset, onOpenProto }: {
 }
 
 // ── Proto detail modal ────────────────────────────────────────────────────────
-function ProtoDetail({ p, onClose }: { p: Protocol; onClose: () => void }) {
+function ProtoDetail({ p, onClose }: { p: Opportunity; onClose: () => void }) {
   return (
-    <div
-      style={{ position: 'fixed', inset: 0, background: 'rgba(10,11,26,0.55)', backdropFilter: 'blur(10px)', zIndex: 90, display: 'grid', placeItems: 'center', padding: 24, animation: 'fadein .2s' }}
-      onClick={onClose}
-    >
+    <div style={{ position: 'fixed', inset: 0, background: 'rgba(10,11,26,0.55)', backdropFilter: 'blur(10px)', zIndex: 90, display: 'grid', placeItems: 'center', padding: 24, animation: 'fadein .2s' }} onClick={onClose}>
       <div onClick={(e) => e.stopPropagation()} style={{ width: 'min(560px, 100%)', background: CREAM, borderRadius: 24, overflow: 'hidden', boxShadow: '0 40px 120px rgba(10,11,26,0.5)' }}>
         <div style={{ padding: '28px 28px 24px', background: `linear-gradient(180deg, ${p.brand}14, transparent)`, borderBottom: `1px solid rgba(10,11,26,0.06)` }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 14, marginBottom: 14 }}>
@@ -571,9 +477,9 @@ function ProtoDetail({ p, onClose }: { p: Protocol; onClose: () => void }) {
             <button onClick={onClose} style={{ marginLeft: 'auto', width: 36, height: 36, borderRadius: 999, background: 'rgba(10,11,26,0.06)', border: 'none', cursor: 'pointer', display: 'grid', placeItems: 'center', color: INK_MUTED }}>✕</button>
           </div>
           <div style={{ display: 'flex', gap: 24, flexWrap: 'wrap' }}>
-            <StatBlock label="Yield"      value={`${p.yieldPct}%`}/>
+            <StatBlock label="APY"        value={`${p.yieldPct}%`}/>
             <StatBlock label="Each month" value={`+$${p.monthly.toFixed(2)}`} accent={BLUE}/>
-            <StatBlock label="Size"       value={p.size}/>
+            <StatBlock label="Your size"  value={p.size}/>
             <div>
               <div style={{ font: "500 11px/1 var(--font-display)", color: INK_DIM, letterSpacing: '0.12em', textTransform: 'uppercase', marginBottom: 8 }}>Trust</div>
               <TrustMeter level={p.trust}/>
@@ -605,15 +511,13 @@ function ProtoDetail({ p, onClose }: { p: Protocol; onClose: () => void }) {
 }
 
 // ── Share overlay ─────────────────────────────────────────────────────────────
-function ShareCard({ addr: _addr }: { addr: string }) {
+function ShareCard({ result }: { result: AnalyzeResult }) {
   const [scale, setScale] = useState(1)
-  const cat = categoryFor(TOTAL)
+  const cat = categoryFor(result.totalMonthly)
+  const total = Math.round(result.totalMonthly)
 
   useEffect(() => {
-    const compute = () => {
-      const maxW = Math.min(1220, window.innerWidth - 80)
-      setScale(Math.min(1, maxW / 1200))
-    }
+    const compute = () => { const maxW = Math.min(1220, window.innerWidth - 80); setScale(Math.min(1, maxW / 1200)) }
     compute()
     window.addEventListener('resize', compute)
     return () => window.removeEventListener('resize', compute)
@@ -621,13 +525,7 @@ function ShareCard({ addr: _addr }: { addr: string }) {
 
   return (
     <div style={{ width: 1200 * scale, height: 630 * scale, overflow: 'hidden', borderRadius: 24, boxShadow: '0 40px 120px rgba(0,0,0,0.6)' }}>
-      <div style={{
-        width: 1200, height: 630,
-        transform: `scale(${scale})`, transformOrigin: 'top left',
-        background: INK, color: '#fff', padding: 64,
-        fontFamily: "var(--font-display)",
-        position: 'relative', overflow: 'hidden',
-      }}>
+      <div style={{ width: 1200, height: 630, transform: `scale(${scale})`, transformOrigin: 'top left', background: INK, color: '#fff', padding: 64, fontFamily: "var(--font-display)", position: 'relative', overflow: 'hidden' }}>
         <div style={{ position: 'absolute', inset: 0, backgroundImage: `radial-gradient(rgba(46,112,234,0.18) 1.5px, transparent 1.5px)`, backgroundSize: '36px 36px', maskImage: 'radial-gradient(ellipse 80% 60% at 80% 30%, #000 30%, transparent 70%)', WebkitMaskImage: 'radial-gradient(ellipse 80% 60% at 80% 30%, #000 30%, transparent 70%)', pointerEvents: 'none' }}/>
         <div style={{ position: 'absolute', top: -120, right: -120, width: 520, height: 520, background: `radial-gradient(circle, ${BLUE_2}66 0%, transparent 70%)`, borderRadius: 999, pointerEvents: 'none' }}/>
 
@@ -641,12 +539,12 @@ function ShareCard({ addr: _addr }: { addr: string }) {
 
         <div style={{ marginTop: 28, position: 'relative', zIndex: 2, maxWidth: 1000 }}>
           <div style={{ display: 'inline-flex', alignItems: 'center', gap: 10, padding: '8px 18px', background: `linear-gradient(90deg, ${BLUE}33, ${BLUE_2}00)`, border: `1px solid ${BLUE_2}55`, borderRadius: 999, font: "700 14px/1 var(--font-display)", letterSpacing: '0.14em', textTransform: 'uppercase', color: SKY, marginBottom: 16 }}>
-            <span style={{ width: 6, height: 6, background: GREEN, borderRadius: 999 }}/>{cat.tier.toUpperCase()}
+            <span style={{ width: 6, height: 6, background: GREEN, borderRadius: 999 }}/>{cat.toUpperCase()}
           </div>
           <div style={{ font: "400 24px/1 var(--font-serif)", color: 'rgba(255,255,255,0.55)', marginBottom: 10, fontStyle: 'italic' }}>I&apos;m leaving</div>
           <div style={{ font: "400 190px/0.95 var(--font-serif)", letterSpacing: '-0.02em', display: 'flex', alignItems: 'baseline', gap: 8 }}>
             <span style={{ font: "400 100px/1 var(--font-serif)", opacity: 0.65 }}>$</span>
-            <span>{TOTAL_ROUNDED.toLocaleString()}</span>
+            <span>{total.toLocaleString()}</span>
           </div>
           <div style={{ marginTop: 12, font: "400 64px/1 var(--font-serif)", color: 'rgba(255,255,255,0.6)', fontStyle: 'italic', letterSpacing: '-0.02em' }}>/mo</div>
           <div style={{ font: "400 26px/1.25 var(--font-serif)", color: 'rgba(255,255,255,0.8)', marginTop: 14, fontStyle: 'italic', maxWidth: 820 }}>on the table. Earny showed me where.</div>
@@ -664,14 +562,11 @@ function ShareCard({ addr: _addr }: { addr: string }) {
   )
 }
 
-function ShareOverlay({ addr, onClose }: { addr: string; onClose: () => void }) {
+function ShareOverlay({ result, onClose }: { result: AnalyzeResult; onClose: () => void }) {
   return (
-    <div
-      style={{ position: 'fixed', inset: 0, background: 'rgba(10,11,26,0.75)', backdropFilter: 'blur(8px)', zIndex: 100, display: 'grid', placeItems: 'center', padding: 40, animation: 'fadein .2s', overflow: 'auto' }}
-      onClick={onClose}
-    >
+    <div style={{ position: 'fixed', inset: 0, background: 'rgba(10,11,26,0.75)', backdropFilter: 'blur(8px)', zIndex: 100, display: 'grid', placeItems: 'center', padding: 40, animation: 'fadein .2s', overflow: 'auto' }} onClick={onClose}>
       <div onClick={(e) => e.stopPropagation()} style={{ display: 'flex', flexDirection: 'column', gap: 20, maxWidth: 1220 }}>
-        <ShareCard addr={addr}/>
+        <ShareCard result={result}/>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
           <div style={{ font: "400 13px/1.4 var(--font-display)", color: 'rgba(255,255,255,0.7)', maxWidth: 460 }}>1200×630 · feed-ready. Right-click the card to save as PNG.</div>
           <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
@@ -686,31 +581,50 @@ function ShareOverlay({ addr, onClose }: { addr: string; onClose: () => void }) 
   )
 }
 
+// ── Error state ───────────────────────────────────────────────────────────────
+function ErrorState({ message, onReset }: { message: string; onReset: () => void }) {
+  return (
+    <div style={{ minHeight: '100vh', background: INK, color: '#fff', fontFamily: "var(--font-display)", display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 24, padding: 40 }}>
+      <div style={{ font: "400 48px/1 var(--font-serif)" }}>Something went wrong</div>
+      <div style={{ font: "400 18px/1.5 var(--font-display)", color: 'rgba(255,255,255,0.6)', maxWidth: 480, textAlign: 'center' }}>{message}</div>
+      <button onClick={onReset} style={{ ...primaryBtnStyle, marginTop: 8 }}>Try again</button>
+    </div>
+  )
+}
+
 // ── Root ──────────────────────────────────────────────────────────────────────
 export default function Page() {
-  const [view, setView]           = useState<'landing' | 'analyzing' | 'results'>('landing')
+  const [view, setView]           = useState<'landing' | 'analyzing' | 'results' | 'error'>('landing')
   const [addr, setAddr]           = useState('')
+  const [result, setResult]       = useState<AnalyzeResult | null>(null)
+  const [errorMsg, setErrorMsg]   = useState('')
   const [showShare, setShowShare] = useState(false)
-  const [proto, setProto]         = useState<Protocol | null>(null)
+  const [proto, setProto]         = useState<Opportunity | null>(null)
 
-  useEffect(() => {
-    try {
-      const saved = JSON.parse(localStorage.getItem('earny-demo') || '{}')
-      if (saved.view) { setView(saved.view); setAddr(saved.addr || '') }
-    } catch {}
-  }, [])
-
-  useEffect(() => {
-    try { localStorage.setItem('earny-demo', JSON.stringify({ view, addr })) } catch {}
-  }, [view, addr])
+  const reset = () => { setView('landing'); setAddr(''); setResult(null); setErrorMsg('') }
 
   return (
     <>
-      {view === 'landing'   && <Landing   onAnalyze={(a) => { setAddr(a); setView('analyzing') }}/>}
-      {view === 'analyzing' && <Analyzing addr={addr} onDone={() => setView('results')}/>}
-      {view === 'results'   && <Results   addr={addr} onShare={() => setShowShare(true)} onReset={() => { setView('landing'); setAddr('') }} onOpenProto={(p) => setProto(p)}/>}
-      {showShare && <ShareOverlay addr={addr || '0x0000000000000000000000000000000000000000'} onClose={() => setShowShare(false)}/>}
-      {proto     && <ProtoDetail  p={proto} onClose={() => setProto(null)}/>}
+      {view === 'landing'   && <Landing onAnalyze={(a) => { setAddr(a); setView('analyzing') }}/>}
+      {view === 'analyzing' && (
+        <Analyzing
+          addr={addr}
+          onDone={(r) => { setResult(r); setView('results') }}
+          onError={(msg) => { setErrorMsg(msg); setView('error') }}
+        />
+      )}
+      {view === 'results' && result && (
+        <Results
+          result={result}
+          onShare={() => setShowShare(true)}
+          onReset={reset}
+          onOpenProto={(p) => setProto(p)}
+        />
+      )}
+      {view === 'error' && <ErrorState message={errorMsg} onReset={reset}/>}
+
+      {showShare && result && <ShareOverlay result={result} onClose={() => setShowShare(false)}/>}
+      {proto && <ProtoDetail p={proto} onClose={() => setProto(null)}/>}
     </>
   )
 }
