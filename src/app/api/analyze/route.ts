@@ -6,6 +6,7 @@ import { getFirstInbound } from '@/lib/alchemy'
 import { getBasePools, getEthPrice, findBestPool } from '@/lib/defi-llama'
 import { PROTOCOL_DEFS } from '@/lib/protocols'
 import { rateLimit, clientIp } from '@/lib/rate-limit'
+import { pickArchetype } from '@/lib/archetype'
 import type { Opportunity, AnalyzeResult, Rate, CurrentPosition } from '@/types'
 
 // Ensure every numeric value in the JSON response is a finite number.
@@ -236,6 +237,18 @@ export async function GET(req: NextRequest) {
     const lifetimeMissed = Math.max(0, round2(missedUsdc + missedEth))
     const earliestInboundIso = earliestAny ? earliestAny.toISOString() : undefined
 
+    const MS_PER_DAY = 24 * 60 * 60 * 1000
+    const idleDays = earliestAny ? Math.max(0, Math.floor((now - earliestAny.getTime()) / MS_PER_DAY)) : 0
+
+    const idleUsd = usdcIdle + ethIdle * ethPrice + safe(balances.USDbC)
+    const archetype = pickArchetype({
+      totalUsd: totalPortfolioUsd,
+      idleUsd,
+      idleDays,
+      hasPositions: currentPositions.length > 0,
+      hasDelta: currentPositions.some(p => p.delta > 0.01),
+    })
+
     // All protocol rates regardless of user balance, for the calculator
     const allRates: Rate[] = []
     const seenRate = new Set<string>()
@@ -261,6 +274,8 @@ export async function GET(req: NextRequest) {
       leftOnTable,
       lifetimeMissed,
       earliestInboundIso,
+      idleDays,
+      archetype,
       positions: currentPositions,
       balances: {
         ETH:   safe(balances.ETH),

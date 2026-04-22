@@ -53,7 +53,13 @@ function categoryFor(monthly: number) {
   return 'Whale Asleep'
 }
 
-function buildShareText(totalMonthly: number, lifetimeMissed: number, earliestIso?: string) {
+function buildShareText(result: AnalyzeResult) {
+  const { totalMonthly, lifetimeMissed, earliestInboundIso: earliestIso, idleDays, archetype } = result
+  const fixLine = totalMonthly > 0 ? `\n\nFixing it: +$${totalMonthly.toFixed(2)}/mo.` : ''
+  if (archetype && idleDays > 30) {
+    const idleStr = idleDays >= 365 ? `${(idleDays / 365).toFixed(1)} years` : `${idleDays} days`
+    return `Earny just called me ${archetype.shareVerb}.\n\nMy assets have been sitting on Base for ${idleStr}.${fixLine}\n\nWhat are you? 👇\nearny.chat`
+  }
   if (lifetimeMissed > 0 && earliestIso) {
     const d = new Date(earliestIso)
     const when = d.toLocaleDateString('en-US', { month: 'long', year: 'numeric' })
@@ -1161,7 +1167,6 @@ function ProtoDetail({ p, onClose }: { p: Opportunity; onClose: () => void }) {
 // ── Share card ────────────────────────────────────────────────────────────────
 function ShareCard({ result, captureRef }: { result: AnalyzeResult; captureRef?: React.RefObject<HTMLDivElement | null> }) {
   const [scale, setScale] = useState(1)
-  const cat = categoryFor(result.totalMonthly)
   const total = Math.round(result.totalMonthly)
 
   useEffect(() => {
@@ -1195,39 +1200,38 @@ function ShareCard({ result, captureRef }: { result: AnalyzeResult; captureRef?:
           </div>
         </div>
 
-        {/* Middle — the number is the star */}
+        {/* Middle — archetype is the star */}
         <div style={{ marginTop: 36, position: 'relative', zIndex: 2, flex: 1, display: 'flex', flexDirection: 'column', justifyContent: 'center' }}>
-          <div style={{ display: 'inline-flex', alignItems: 'center', gap: 10, padding: '8px 18px', background: `linear-gradient(90deg, ${BLUE}55, ${BLUE_2}11)`, border: `1px solid ${BLUE_2}66`, borderRadius: 999, font: "700 13px/1 var(--font-display)", letterSpacing: '0.18em', textTransform: 'uppercase', color: SKY, marginBottom: 14, alignSelf: 'flex-start' }}>
-            <span style={{ width: 6, height: 6, background: GREEN, borderRadius: 999 }}/>{cat.toUpperCase()}
+          <div style={{ font: "400 28px/1 var(--font-serif)", color: 'rgba(255,255,255,0.7)', marginBottom: 10, fontStyle: 'italic' }}>I am</div>
+          <div style={{ font: "400 clamp(96px, 11vw, 148px)/0.95 var(--font-serif)", letterSpacing: '-0.02em' }}>
+            {result.archetype.label}
           </div>
-          {result.lifetimeMissed > 0 && result.earliestInboundIso ? (
-            <>
-              <div style={{ font: "400 28px/1 var(--font-serif)", color: 'rgba(255,255,255,0.7)', marginBottom: 6, fontStyle: 'italic' }}>I&apos;ve left on the table</div>
-              <div style={{ font: "400 200px/0.92 var(--font-serif)", letterSpacing: '-0.03em', display: 'flex', alignItems: 'baseline', gap: 6 }}>
-                <span style={{ font: "400 104px/1 var(--font-serif)", opacity: 0.7 }}>$</span>
-                <span>{Math.round(result.lifetimeMissed).toLocaleString()}</span>
+          <div style={{ font: "400 26px/1.35 var(--font-serif)", color: 'rgba(255,255,255,0.82)', marginTop: 14, fontStyle: 'italic', maxWidth: 820 }}>
+            {result.archetype.tagline}
+          </div>
+
+          <div style={{ display: 'flex', gap: 10, marginTop: 22, flexWrap: 'wrap', alignItems: 'center' }}>
+            {result.idleDays > 0 && (
+              <div style={{ display: 'inline-flex', alignItems: 'baseline', gap: 8, padding: '12px 18px', background: 'rgba(255,255,255,0.06)', border: `1px solid rgba(255,255,255,0.16)`, borderRadius: 14 }}>
+                <span style={{ font: "500 13px/1 var(--font-display)", color: 'rgba(255,255,255,0.55)', letterSpacing: '0.16em', textTransform: 'uppercase' }}>Idle for</span>
+                <span style={{ font: "400 32px/1 var(--font-serif)", color: '#fff' }}>{result.idleDays.toLocaleString()}</span>
+                <span style={{ font: "400 18px/1 var(--font-serif)", color: 'rgba(255,255,255,0.7)', fontStyle: 'italic' }}>days</span>
               </div>
-              <div style={{ font: "400 28px/1.2 var(--font-serif)", color: 'rgba(255,255,255,0.85)', marginTop: 10, fontStyle: 'italic' }}>
-                since {formatSinceMonth(result.earliestInboundIso)}. My assets just sat there.
+            )}
+            {result.lifetimeMissed > 0 && (
+              <div style={{ display: 'inline-flex', alignItems: 'baseline', gap: 8, padding: '12px 18px', background: 'rgba(255,255,255,0.06)', border: `1px solid rgba(255,255,255,0.16)`, borderRadius: 14 }}>
+                <span style={{ font: "500 13px/1 var(--font-display)", color: 'rgba(255,255,255,0.55)', letterSpacing: '0.16em', textTransform: 'uppercase' }}>Left on table</span>
+                <span style={{ font: "400 32px/1 var(--font-serif)", color: '#fff' }}>${Math.round(result.lifetimeMissed).toLocaleString()}</span>
               </div>
-              {result.totalMonthly > 0 && (
-                <div style={{ marginTop: 18, display: 'inline-flex', alignItems: 'center', gap: 10, padding: '10px 18px', background: 'rgba(255,255,255,0.06)', border: `1px solid rgba(255,255,255,0.16)`, borderRadius: 12, font: "500 18px/1 var(--font-display)", color: 'rgba(255,255,255,0.9)', alignSelf: 'flex-start' }}>
-                  <span style={{ color: SKY }}>+${total.toLocaleString()}/mo</span>
-                  <span style={{ color: 'rgba(255,255,255,0.55)' }}>if I move it today</span>
-                </div>
-              )}
-            </>
-          ) : (
-            <>
-              <div style={{ font: "400 28px/1 var(--font-serif)", color: 'rgba(255,255,255,0.7)', marginBottom: 6, fontStyle: 'italic' }}>I could be earning</div>
-              <div style={{ font: "400 200px/0.92 var(--font-serif)", letterSpacing: '-0.03em', display: 'flex', alignItems: 'baseline', gap: 6 }}>
-                <span style={{ font: "400 104px/1 var(--font-serif)", opacity: 0.7 }}>$</span>
-                <span>{total.toLocaleString()}</span>
-                <span style={{ font: "400 68px/1 var(--font-serif)", color: 'rgba(255,255,255,0.6)', fontStyle: 'italic' }}>/mo</span>
+            )}
+            {total > 0 && (
+              <div style={{ display: 'inline-flex', alignItems: 'baseline', gap: 8, padding: '12px 18px', background: `linear-gradient(90deg, ${BLUE}55, ${BLUE_2}22)`, border: `1px solid ${BLUE_2}66`, borderRadius: 14 }}>
+                <span style={{ font: "500 13px/1 var(--font-display)", color: SKY, letterSpacing: '0.16em', textTransform: 'uppercase' }}>Fix it</span>
+                <span style={{ font: "400 32px/1 var(--font-serif)", color: '#fff' }}>+${total.toLocaleString()}</span>
+                <span style={{ font: "400 18px/1 var(--font-serif)", color: 'rgba(255,255,255,0.7)', fontStyle: 'italic' }}>/mo</span>
               </div>
-              <div style={{ font: "400 28px/1.2 var(--font-serif)", color: 'rgba(255,255,255,0.85)', marginTop: 10, fontStyle: 'italic' }}>on Base. I just didn&apos;t know where.</div>
-            </>
-          )}
+            )}
+          </div>
 
           {/* Category chips */}
           <div style={{ display: 'flex', gap: 10, marginTop: 24, flexWrap: 'wrap' }}>
@@ -1259,7 +1263,7 @@ function ShareOverlay({ result, onClose }: { result: AnalyzeResult; onClose: () 
   const [busy, setBusy]     = useState<'save' | 'share' | null>(null)
   const [hint, setHint]     = useState('')
   const isMobile = useIsMobile()
-  const text     = buildShareText(result.totalMonthly, result.lifetimeMissed, result.earliestInboundIso)
+  const text     = buildShareText(result)
   const cardRef  = useRef<HTMLDivElement | null>(null)
 
   const capture = useCallback(async (): Promise<Blob> => {

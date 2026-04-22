@@ -45,6 +45,13 @@ export interface CurrentPosition {
   delta: number         // bestMonthly - monthly; >=0
 }
 
+export interface Archetype {
+  id: string
+  label: string
+  tagline: string
+  shareVerb: string
+}
+
 export interface AnalyzeResult {
   address: string
   opportunities: Opportunity[]
@@ -53,6 +60,8 @@ export interface AnalyzeResult {
   leftOnTable: number           // max(0, totalMonthly - currentMonthly)
   lifetimeMissed: number        // cumulative USD that idle assets would have earned at best APY since first inbound
   earliestInboundIso?: string   // ISO date of earliest inbound transfer across tracked assets
+  idleDays: number              // days since earliest inbound (0 if unknown)
+  archetype: Archetype          // shareable label for the wallet
   positions: CurrentPosition[]  // detected lending deposits, with delta per position
   balances: {
     ETH: number
