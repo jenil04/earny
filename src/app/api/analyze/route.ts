@@ -86,10 +86,20 @@ export async function GET(req: NextRequest) {
     // Highest monthly earnings first
     opportunities.sort((a, b) => b.monthly - a.monthly)
 
+    // A wallet can only deploy each asset to ONE protocol at a time.
+    // Total = best (highest monthly) opportunity per asset type.
+    const seenAsset = new Set<string>()
+    const totalMonthly = Math.round(
+      opportunities.reduce((s, o) => {
+        if (!seenAsset.has(o.asset)) { seenAsset.add(o.asset); return s + o.monthly }
+        return s
+      }, 0) * 100
+    ) / 100
+
     const result: AnalyzeResult = {
       address,
       opportunities,
-      totalMonthly: Math.round(opportunities.reduce((s, o) => s + o.monthly, 0) * 100) / 100,
+      totalMonthly,
       balances,
       ethPrice,
     }

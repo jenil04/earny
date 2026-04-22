@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect, useRef } from 'react'
+import { useState, useEffect, useRef, useCallback } from 'react'
 import type { Opportunity, AnalyzeResult } from '@/types'
 
 // ── Palette ──────────────────────────────────────────────────────────────────
@@ -17,6 +17,19 @@ const INK_MUTED = 'rgba(10,11,26,0.62)'
 const INK_DIM   = 'rgba(10,11,26,0.38)'
 const GREEN     = '#10B981'
 
+// ── Responsive hook ───────────────────────────────────────────────────────────
+function useIsMobile(bp = 768) {
+  const [mobile, setMobile] = useState(false)
+  useEffect(() => {
+    const mq = window.matchMedia(`(max-width: ${bp - 1}px)`)
+    setMobile(mq.matches)
+    const handler = (e: MediaQueryListEvent) => setMobile(e.matches)
+    mq.addEventListener('change', handler)
+    return () => mq.removeEventListener('change', handler)
+  }, [bp])
+  return mobile
+}
+
 // ── Helpers ───────────────────────────────────────────────────────────────────
 function formatAddr(a: string) {
   if (!a) return '—'
@@ -31,6 +44,10 @@ function categoryFor(monthly: number) {
   if (monthly < 1000) return 'Onchain Saver'
   if (monthly < 3000) return 'DeFi Native'
   return 'Whale Asleep'
+}
+
+function buildShareText(totalMonthly: number) {
+  return `I could be earning $${totalMonthly.toFixed(2)}/mo on Base — and I wasn't.\n\nEarny showed me exactly where my assets should be working.\n\nCheck yours 👇\nearny.chat`
 }
 
 // ── Shared styles ─────────────────────────────────────────────────────────────
@@ -70,7 +87,9 @@ function ShareIcon() { return <svg width="16" height="16" viewBox="0 0 24 24" fi
 function ChatIcon() { return <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15a2 2 0 0 1-2 2H8l-5 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg> }
 function InfoIcon() { return <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"/><path d="M12 16v-4M12 8h.01"/></svg> }
 function TwitterIcon() { return <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z"/></svg> }
-function DownloadIcon() { return <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 4v12M6 10l6 6 6-6M4 20h16"/></svg> }
+function FarcasterIcon() { return <svg width="14" height="14" viewBox="0 0 1000 1000" fill="currentColor"><path d="M257.778 155.556H742.222V844.444H671.111V528.889H670.414C662.554 441.677 589.258 373.333 500 373.333C410.742 373.333 337.446 441.677 329.586 528.889H328.889V844.444H257.778V155.556Z"/><path d="M128.889 253.333L157.778 351.111H182.222V746.667C169.949 746.667 160 756.616 160 768.889V795.556H155.556C143.283 795.556 133.333 805.505 133.333 817.778V844.444H382.222V817.778C382.222 805.505 372.273 795.556 360 795.556H355.556V768.889C355.556 756.616 345.606 746.667 333.333 746.667H306.667V253.333H128.889Z"/><path d="M675.556 746.667C663.283 746.667 653.333 756.616 653.333 768.889V795.556H648.889C636.616 795.556 626.667 805.505 626.667 817.778V844.444H875.556V817.778C875.556 805.505 865.606 795.556 853.333 795.556H848.889V768.889C848.889 756.616 838.94 746.667 826.667 746.667V351.111H851.111L880 253.333H702.222V746.667H675.556Z"/></svg> }
+function CopyIcon() { return <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg> }
+function CheckIcon() { return <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M20 6L9 17l-5-5"/></svg> }
 
 // ── Decorative ────────────────────────────────────────────────────────────────
 function GridBackdrop() {
@@ -187,12 +206,13 @@ function MiniPill({ dark = false }: { dark?: boolean }) {
 }
 
 function SiteFooter({ dark = true }: { dark?: boolean }) {
+  const isMobile = useIsMobile()
   const fg       = dark ? 'rgba(255,255,255,0.55)' : INK_MUTED
   const fgStrong = dark ? 'rgba(255,255,255,0.9)'  : INK
   const border   = dark ? 'rgba(255,255,255,0.08)' : 'rgba(10,11,26,0.08)'
   return (
-    <footer style={{ padding: '32px 40px', borderTop: `1px solid ${border}`, display: 'flex', flexWrap: 'wrap', gap: 24, justifyContent: 'space-between', alignItems: 'center', font: "400 13px/1.4 var(--font-display)", color: fg }}>
-      <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
+    <footer style={{ padding: isMobile ? '24px 20px' : '32px 40px', borderTop: `1px solid ${border}`, display: 'flex', flexWrap: 'wrap', gap: 16, justifyContent: 'space-between', alignItems: 'center', font: "400 13px/1.4 var(--font-display)", color: fg }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
         <span>Built by</span>
         <a href="https://x.com/jenilt" target="_blank" rel="noopener noreferrer" style={{ color: fgStrong, textDecoration: 'none', fontWeight: 600 }}>@jenilt</a>
       </div>
@@ -214,6 +234,7 @@ function HowStep({ n, title, body }: { n: string; title: string; body: string })
 // ── Landing ───────────────────────────────────────────────────────────────────
 function Landing({ onAnalyze }: { onAnalyze: (addr: string) => void }) {
   const [addr, setAddr] = useState('')
+  const isMobile = useIsMobile()
   const valid = /^0x[a-fA-F0-9]{40}$/.test(addr.trim())
 
   return (
@@ -221,45 +242,44 @@ function Landing({ onAnalyze }: { onAnalyze: (addr: string) => void }) {
       <GridBackdrop/>
       <AuraBlob/>
 
-      <header style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '26px 40px', position: 'relative', zIndex: 3 }}>
+      <header style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: isMobile ? '20px 20px' : '26px 40px', position: 'relative', zIndex: 3 }}>
         {/* eslint-disable-next-line @next/next/no-img-element */}
-        <img src="/earny-logo.svg" alt="Earny" style={{ height: 30, display: 'block' }}/>
-        <nav style={{ display: 'flex', gap: 28, font: "500 15px/1 var(--font-display)", color: 'rgba(255,255,255,0.75)', alignItems: 'center' }}>
-          <a href="#how" style={{ color: 'inherit', textDecoration: 'none' }}>How it works</a>
-        </nav>
+        <img src="/earny-logo.svg" alt="Earny" style={{ height: 28, display: 'block' }}/>
+        {!isMobile && (
+          <nav style={{ display: 'flex', gap: 28, font: "500 15px/1 var(--font-display)", color: 'rgba(255,255,255,0.75)', alignItems: 'center' }}>
+            <a href="#how" style={{ color: 'inherit', textDecoration: 'none' }}>How it works</a>
+          </nav>
+        )}
       </header>
 
-      <main style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: '32px 24px 80px', position: 'relative', zIndex: 2 }}>
+      <main style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: isMobile ? '24px 20px 60px' : '32px 24px 80px', position: 'relative', zIndex: 2 }}>
         <MiniPill dark/>
 
-        <h1 style={{ font: "400 clamp(48px, 6.5vw, 96px)/1.05 var(--font-serif)", letterSpacing: '-0.02em', textAlign: 'center', margin: '28px 0 36px', maxWidth: 1100 }}>
-          <span style={{ whiteSpace: 'nowrap' }}>You&apos;re leaving <em style={{ color: BLUE_2, fontStyle: 'italic', letterSpacing: '0.04em' }}>$ _____</em></span>
+        <h1 style={{ font: `400 clamp(38px, 6.5vw, 96px)/1.05 var(--font-serif)`, letterSpacing: '-0.02em', textAlign: 'center', margin: '24px 0 28px', maxWidth: 1100 }}>
+          <span style={{ whiteSpace: isMobile ? 'normal' : 'nowrap' }}>You&apos;re leaving <em style={{ color: BLUE_2, fontStyle: 'italic', letterSpacing: '0.04em' }}>$ _____</em></span>
           <br/>
-          <span style={{ whiteSpace: 'nowrap' }}>on the table every month.</span>
+          <span style={{ whiteSpace: isMobile ? 'normal' : 'nowrap' }}>on the table every month.</span>
         </h1>
 
-        <p style={{ font: "400 clamp(18px, 1.8vw, 22px)/1.45 var(--font-display)", color: 'rgba(255,255,255,0.68)', textAlign: 'center', maxWidth: 620, margin: '0 0 44px' }}>
+        <p style={{ font: "400 clamp(16px, 1.8vw, 22px)/1.45 var(--font-display)", color: 'rgba(255,255,255,0.68)', textAlign: 'center', maxWidth: 580, margin: '0 0 36px', padding: '0 8px' }}>
           Earny is your onchain CFO. Paste your wallet and see exactly how much you can earn monthly across the top Base protocols.
         </p>
 
         <form
           onSubmit={(e) => { e.preventDefault(); if (valid) onAnalyze(addr.trim()) }}
-          style={{ display: 'flex', gap: 8, padding: 8, background: '#fff', borderRadius: 999, boxShadow: '0 30px 80px rgba(25,109,253,0.22), 0 2px 0 rgba(255,255,255,0.4) inset', width: 'min(640px, 92vw)' }}
+          style={{ display: 'flex', flexDirection: isMobile ? 'column' : 'row', gap: isMobile ? 10 : 8, padding: isMobile ? 12 : 8, background: '#fff', borderRadius: isMobile ? 20 : 999, boxShadow: '0 30px 80px rgba(25,109,253,0.22), 0 2px 0 rgba(255,255,255,0.4) inset', width: 'min(640px, 92vw)' }}
         >
-          <div style={{ display: 'flex', alignItems: 'center', paddingLeft: 20, color: INK_MUTED }}><WalletGlyph/></div>
+          {!isMobile && <div style={{ display: 'flex', alignItems: 'center', paddingLeft: 20, color: INK_MUTED }}><WalletGlyph/></div>}
           <input
             value={addr}
             onChange={(e) => setAddr(e.target.value)}
-            placeholder="paste a wallet address (0x…)"
-            style={{ flex: 1, border: 'none', outline: 'none', background: 'transparent', font: "500 18px/1 var(--font-display)", color: INK, padding: '0 4px', minWidth: 0 }}
+            placeholder={isMobile ? "0x wallet address…" : "paste a wallet address (0x…)"}
+            style={{ flex: 1, border: 'none', outline: 'none', background: 'transparent', font: `500 ${isMobile ? 16 : 18}px/1 var(--font-display)`, color: INK, padding: isMobile ? '8px 12px' : '0 4px', minWidth: 0 }}
           />
           <button
             type="submit"
             disabled={!valid}
-            style={{ border: 'none', cursor: valid ? 'pointer' : 'not-allowed', background: valid ? BLUE : '#CFD7E5', color: '#fff', font: "600 16px/1 var(--font-display)", padding: '0 28px', borderRadius: 999, height: 52, display: 'flex', alignItems: 'center', gap: 8, transition: 'transform .15s, background .15s' }}
-            onMouseDown={(e) => { e.currentTarget.style.transform = 'scale(0.97)' }}
-            onMouseUp={(e)   => { e.currentTarget.style.transform = '' }}
-            onMouseLeave={(e)=> { e.currentTarget.style.transform = '' }}
+            style={{ border: 'none', cursor: valid ? 'pointer' : 'not-allowed', background: valid ? BLUE : '#CFD7E5', color: '#fff', font: "600 16px/1 var(--font-display)", padding: isMobile ? '16px' : '0 28px', borderRadius: isMobile ? 12 : 999, height: isMobile ? 52 : 52, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, transition: 'transform .15s, background .15s' }}
           >
             Check mine <Arrow/>
           </button>
@@ -267,12 +287,12 @@ function Landing({ onAnalyze }: { onAnalyze: (addr: string) => void }) {
 
         <button
           onClick={() => onAnalyze('0xd8dA6BF26964aF9D7eEd9e03E53415D37aA96045')}
-          style={{ marginTop: 18, background: 'transparent', color: 'rgba(255,255,255,0.55)', border: 'none', font: "500 14px/1 var(--font-display)", cursor: 'pointer', textDecoration: 'underline', textUnderlineOffset: 4 }}
+          style={{ marginTop: 16, background: 'transparent', color: 'rgba(255,255,255,0.55)', border: 'none', font: "500 14px/1 var(--font-display)", cursor: 'pointer', textDecoration: 'underline', textUnderlineOffset: 4 }}
         >
           or try a sample wallet →
         </button>
 
-        <div id="how" style={{ marginTop: 100, display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 16, maxWidth: 980, width: '100%' }}>
+        <div id="how" style={{ marginTop: isMobile ? 60 : 100, display: 'grid', gridTemplateColumns: isMobile ? '1fr' : 'repeat(3, 1fr)', gap: 12, maxWidth: 980, width: '100%' }}>
           <HowStep n="01" title="Paste your wallet"       body="No signing, no connecting. Earny reads public onchain balances on Base."/>
           <HowStep n="02" title="See what you're missing" body="Every idle asset gets matched with live APYs from the top Base protocols."/>
           <HowStep n="03" title="Start earning"           body="One-tap links to each protocol. You sign every transaction yourself."/>
@@ -298,14 +318,12 @@ function Analyzing({ addr, onDone, onError }: { addr: string; onDone: (r: Analyz
   const [result, setResult] = useState<AnalyzeResult | null>(null)
   const calledDone = useRef(false)
 
-  // Step animation — independent of fetch
   useEffect(() => {
     if (step >= ANALYZE_STEPS.length) return
     const t = setTimeout(() => setStep(s => s + 1), 700)
     return () => clearTimeout(t)
   }, [step])
 
-  // Proceed once both animation finished and result is ready
   useEffect(() => {
     if (step >= ANALYZE_STEPS.length && result && !calledDone.current) {
       calledDone.current = true
@@ -313,7 +331,6 @@ function Analyzing({ addr, onDone, onError }: { addr: string; onDone: (r: Analyz
     }
   }, [step, result, onDone])
 
-  // Fetch
   useEffect(() => {
     const ctrl = new AbortController()
     fetch(`/api/analyze?address=${encodeURIComponent(addr)}`, { signal: ctrl.signal })
@@ -338,7 +355,7 @@ function Analyzing({ addr, onDone, onError }: { addr: string; onDone: (r: Analyz
             Analysing {formatAddr(addr)}
           </span>
         </div>
-        <ul style={{ listStyle: 'none', padding: 0, margin: 0, display: 'flex', flexDirection: 'column', gap: 14, minWidth: 360 }}>
+        <ul style={{ listStyle: 'none', padding: 0, margin: 0, display: 'flex', flexDirection: 'column', gap: 14, minWidth: 300 }}>
           {ANALYZE_STEPS.map((s, i) => (
             <li key={i} style={{ display: 'flex', alignItems: 'center', gap: 14, font: "500 17px/1.3 var(--font-display)", color: i < step ? '#fff' : 'rgba(255,255,255,0.35)', transition: 'color .3s' }}>
               <span style={{ width: 22, height: 22, borderRadius: 999, flex: 'none', display: 'grid', placeItems: 'center', background: i < step ? BLUE_2 : 'rgba(255,255,255,0.08)', color: '#fff', font: "700 12px/1 var(--font-display)", transition: 'background .3s' }}>
@@ -356,6 +373,29 @@ function Analyzing({ addr, onDone, onError }: { addr: string; onDone: (r: Analyz
 // ── Proto card ────────────────────────────────────────────────────────────────
 function ProtoCard({ p, rank, onOpen }: { p: Opportunity; rank: number; onOpen: () => void }) {
   const [hover, setHover] = useState(false)
+  const isMobile = useIsMobile()
+
+  if (isMobile) {
+    return (
+      <button
+        onClick={onOpen}
+        onMouseEnter={() => setHover(true)}
+        onMouseLeave={() => setHover(false)}
+        style={{ display: 'grid', gridTemplateColumns: '44px 1fr auto', gap: '10px 14px', alignItems: 'center', padding: '16px', background: '#fff', borderRadius: 16, border: `1px solid ${hover ? BLUE : 'rgba(10,11,26,0.06)'}`, textAlign: 'left', color: 'inherit', transition: 'border-color .15s', cursor: 'pointer', width: '100%' }}
+      >
+        <ProtoDisc p={p} size={44}/>
+        <div style={{ minWidth: 0 }}>
+          <div style={{ font: "700 16px/1.1 var(--font-display)", marginBottom: 3 }}>{p.name}</div>
+          <div style={{ font: "400 13px/1.4 var(--font-display)", color: INK_MUTED, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{p.asset} · {p.yieldPct}% APY</div>
+        </div>
+        <div style={{ textAlign: 'right', flex: 'none' }}>
+          <div style={{ font: "400 22px/1 var(--font-serif)", color: BLUE }}>+${p.monthly.toFixed(2)}</div>
+          <div style={{ font: "500 11px/1 var(--font-display)", color: INK_DIM, marginTop: 3 }}>/month</div>
+        </div>
+      </button>
+    )
+  }
+
   return (
     <button
       onClick={onOpen}
@@ -389,9 +429,9 @@ function ProtoCard({ p, rank, onOpen }: { p: Opportunity; rank: number; onOpen: 
 // ── Calculator ────────────────────────────────────────────────────────────────
 function Calculator({ opportunities }: { opportunities: Opportunity[] }) {
   const [raw, setRaw] = useState('')
+  const isMobile = useIsMobile()
   const amount = parseFloat(raw.replace(/,/g, '')) || 0
 
-  // Deduplicate: one entry per protocol name, keep highest APY
   const byProto = Object.values(
     opportunities.reduce<Record<string, Opportunity>>((acc, o) => {
       if (!acc[o.name] || o.yieldPct > acc[o.name].yieldPct) acc[o.name] = o
@@ -399,33 +439,26 @@ function Calculator({ opportunities }: { opportunities: Opportunity[] }) {
     }, {})
   ).sort((a, b) => b.yieldPct - a.yieldPct)
 
-  const totalMonthly = amount > 0
-    ? byProto.reduce((s, o) => s + (amount * o.yieldPct) / 100 / 12, 0) / byProto.length
-    : 0
-
   return (
-    <section style={{ padding: '0 40px 80px', maxWidth: 1200, margin: '0 auto' }}>
-      <div style={{ background: INK, borderRadius: 24, padding: '48px 48px 40px', position: 'relative', overflow: 'hidden' }}>
+    <section style={{ padding: isMobile ? '0 16px 60px' : '0 40px 80px', maxWidth: 1200, margin: '0 auto' }}>
+      <div style={{ background: INK, borderRadius: 24, padding: isMobile ? '32px 24px 28px' : '48px 48px 40px', position: 'relative', overflow: 'hidden' }}>
         <div style={{ position: 'absolute', inset: 0, backgroundImage: `radial-gradient(rgba(46,112,234,0.15) 1.2px, transparent 1.2px)`, backgroundSize: '28px 28px', maskImage: 'radial-gradient(ellipse 70% 60% at 80% 50%, #000 20%, transparent 80%)', WebkitMaskImage: 'radial-gradient(ellipse 70% 60% at 80% 50%, #000 20%, transparent 80%)', pointerEvents: 'none' }}/>
         <div style={{ position: 'absolute', top: -80, right: -80, width: 360, height: 360, background: `radial-gradient(circle, ${BLUE_2}44 0%, transparent 65%)`, borderRadius: 999, pointerEvents: 'none', filter: 'blur(30px)' }}/>
 
         <div style={{ position: 'relative', zIndex: 2 }}>
           <div style={{ font: "500 12px/1 var(--font-display)", color: SKY, letterSpacing: '0.16em', textTransform: 'uppercase', marginBottom: 16 }}>Run the numbers</div>
-          <h2 style={{ font: "400 clamp(28px, 3vw, 40px)/1.1 var(--font-serif)", color: '#fff', letterSpacing: '-0.01em', margin: '0 0 8px' }}>What could you earn?</h2>
-          <p style={{ font: "400 15px/1.5 var(--font-display)", color: 'rgba(255,255,255,0.55)', margin: '0 0 36px', maxWidth: 520 }}>
-            Enter any dollar amount to see how much each protocol would return monthly at today&apos;s live APYs.
+          <h2 style={{ font: `400 clamp(24px, 3vw, 40px)/1.1 var(--font-serif)`, color: '#fff', letterSpacing: '-0.01em', margin: '0 0 8px' }}>What could you earn?</h2>
+          <p style={{ font: "400 15px/1.5 var(--font-display)", color: 'rgba(255,255,255,0.55)', margin: '0 0 28px', maxWidth: 520 }}>
+            Enter any dollar amount to see how much each protocol returns monthly at today&apos;s live APYs.
           </p>
 
-          <div style={{ display: 'flex', gap: 8, alignItems: 'center', background: 'rgba(255,255,255,0.05)', border: `1.5px solid ${amount > 0 ? BLUE_2 : 'rgba(255,255,255,0.1)'}`, borderRadius: 16, padding: '4px 4px 4px 20px', maxWidth: 400, transition: 'border-color .2s' }}>
+          <div style={{ display: 'flex', gap: 8, alignItems: 'center', background: 'rgba(255,255,255,0.05)', border: `1.5px solid ${amount > 0 ? BLUE_2 : 'rgba(255,255,255,0.1)'}`, borderRadius: 16, padding: '4px 4px 4px 20px', maxWidth: 360, transition: 'border-color .2s' }}>
             <span style={{ font: "500 22px/1 var(--font-display)", color: 'rgba(255,255,255,0.4)' }}>$</span>
             <input
               type="text"
               inputMode="numeric"
               value={raw}
-              onChange={(e) => {
-                const v = e.target.value.replace(/[^0-9,]/g, '')
-                setRaw(v)
-              }}
+              onChange={(e) => setRaw(e.target.value.replace(/[^0-9,]/g, ''))}
               placeholder="10,000"
               style={{ flex: 1, background: 'transparent', border: 'none', outline: 'none', font: "600 26px/1 var(--font-display)", color: '#fff', padding: '14px 4px', minWidth: 0 }}
             />
@@ -434,39 +467,36 @@ function Calculator({ opportunities }: { opportunities: Opportunity[] }) {
             )}
           </div>
 
-          {amount > 0 && (
-            <div style={{ marginTop: 32, display: 'flex', flexDirection: 'column', gap: 12 }}>
+          {amount > 0 ? (
+            <div style={{ marginTop: 28, display: 'flex', flexDirection: 'column', gap: 10 }}>
               {byProto.map(o => {
                 const monthly = (amount * o.yieldPct) / 100 / 12
                 return (
-                  <div key={o.id} style={{ display: 'flex', alignItems: 'center', gap: 16, padding: '16px 20px', background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.07)', borderRadius: 14 }}>
+                  <div key={o.id} style={{ display: 'flex', alignItems: 'center', gap: 14, padding: isMobile ? '14px 16px' : '16px 20px', background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.07)', borderRadius: 14 }}>
                     <ProtoDisc p={o} size={36}/>
-                    <div style={{ flex: 1, display: 'flex', alignItems: 'center', gap: 8 }}>
+                    <div style={{ flex: 1, display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
                       <span style={{ font: "600 15px/1 var(--font-display)", color: '#fff' }}>{o.name}</span>
                       <span style={{ font: "500 13px/1 var(--font-display)", color: 'rgba(255,255,255,0.35)' }}>{o.yieldPct}% APY</span>
                     </div>
-                    <div style={{ textAlign: 'right' }}>
+                    <div style={{ textAlign: 'right', flex: 'none' }}>
                       <div style={{ font: "400 22px/1 var(--font-serif)", color: BLUE_2 }}>+${monthly.toFixed(2)}</div>
                       <div style={{ font: "500 11px/1 var(--font-display)", color: 'rgba(255,255,255,0.35)', marginTop: 3 }}>per month</div>
                     </div>
                   </div>
                 )
               })}
-
-              <div style={{ marginTop: 8, padding: '20px 20px', background: `linear-gradient(135deg, ${BLUE}22, ${BLUE_2}11)`, border: `1px solid ${BLUE_2}44`, borderRadius: 14, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              <div style={{ marginTop: 6, padding: '18px 20px', background: `linear-gradient(135deg, ${BLUE}22, ${BLUE_2}11)`, border: `1px solid ${BLUE_2}44`, borderRadius: 14, display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 12 }}>
                 <div>
                   <div style={{ font: "500 12px/1 var(--font-display)", color: SKY, letterSpacing: '0.12em', textTransform: 'uppercase', marginBottom: 6 }}>Best rate on ${Number(amount.toFixed(0)).toLocaleString()}</div>
-                  <div style={{ font: "400 13px/1 var(--font-display)", color: 'rgba(255,255,255,0.5)' }}>at {byProto[0]?.yieldPct}% APY with {byProto[0]?.name}</div>
+                  <div style={{ font: "400 13px/1 var(--font-display)", color: 'rgba(255,255,255,0.5)' }}>{byProto[0]?.yieldPct}% APY · {byProto[0]?.name}</div>
                 </div>
-                <div style={{ font: "400 40px/1 var(--font-serif)", color: '#fff' }}>
+                <div style={{ font: "400 36px/1 var(--font-serif)", color: '#fff' }}>
                   +${((amount * (byProto[0]?.yieldPct ?? 0)) / 100 / 12).toFixed(2)}<span style={{ font: "400 18px/1 var(--font-serif)", color: 'rgba(255,255,255,0.5)' }}>/mo</span>
                 </div>
               </div>
             </div>
-          )}
-
-          {amount === 0 && (
-            <div style={{ marginTop: 32, display: 'flex', gap: 10, flexWrap: 'wrap' }}>
+          ) : (
+            <div style={{ marginTop: 24, display: 'flex', gap: 8, flexWrap: 'wrap' }}>
               {[1000, 5000, 10000, 50000].map(preset => (
                 <button key={preset} onClick={() => setRaw(preset.toLocaleString())}
                   style={{ padding: '10px 18px', background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: 999, font: "600 14px/1 var(--font-display)", color: 'rgba(255,255,255,0.7)', cursor: 'pointer' }}>
@@ -489,45 +519,50 @@ function Results({ result, onShare, onReset, onOpenProto }: {
   onOpenProto: (p: Opportunity) => void
 }) {
   const { address, opportunities, totalMonthly } = result
+  const isMobile = useIsMobile()
 
   return (
     <div style={{ minHeight: '100vh', background: CREAM, color: INK, fontFamily: "var(--font-display)" }}>
-      <header style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '24px 40px', borderBottom: `1px solid rgba(10,11,26,0.06)` }}>
+      <header style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: isMobile ? '16px 20px' : '24px 40px', borderBottom: `1px solid rgba(10,11,26,0.06)`, flexWrap: 'wrap', gap: 12 }}>
         <button onClick={onReset} style={{ display: 'flex', alignItems: 'center', background: 'none', border: 'none', cursor: 'pointer', padding: 0 }}>
           {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img src="/earny-logo-dark.svg" alt="Earny" style={{ height: 28, display: 'block' }}/>
+          <img src="/earny-logo-dark.svg" alt="Earny" style={{ height: 26, display: 'block' }}/>
         </button>
-        <div style={{ display: 'flex', gap: 10, alignItems: 'center' }}>
-          <MiniPill/>
+        <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
+          {!isMobile && <MiniPill/>}
           <AddrChip addr={address}/>
           <button onClick={onReset} style={linkBtnStyle}>New wallet</button>
         </div>
       </header>
 
-      <section style={{ padding: '64px 40px 40px', maxWidth: 1200, margin: '0 auto' }}>
+      <section style={{ padding: isMobile ? '40px 20px 32px' : '64px 40px 40px', maxWidth: 1200, margin: '0 auto' }}>
         <div style={{ font: "500 13px/1 var(--font-display)", color: BLUE, letterSpacing: '0.14em', textTransform: 'uppercase', marginBottom: 20 }}>
           Based on your Base wallet holdings
         </div>
 
         {opportunities.length === 0 ? (
           <div style={{ padding: '60px 0', textAlign: 'center' }}>
-            <h1 style={{ font: "400 48px/1.1 var(--font-serif)", margin: '0 0 16px' }}>No opportunities found</h1>
+            <h1 style={{ font: "400 clamp(36px, 6vw, 56px)/1.1 var(--font-serif)", margin: '0 0 16px' }}>No opportunities found</h1>
             <p style={{ font: "400 18px/1.5 var(--font-display)", color: INK_MUTED, maxWidth: 480, margin: '0 auto' }}>
               This wallet has no USDC, USDbC, or ETH on Base — or balances are below $1. Try a different wallet, or bridge assets to Base first.
             </p>
           </div>
         ) : (
           <>
-            <h1 style={{ font: "400 clamp(96px, 13vw, 180px)/1 var(--font-serif)", letterSpacing: '-0.02em', margin: 0, color: INK, display: 'flex', alignItems: 'baseline', gap: 8 }}>
-              <span style={{ font: 'inherit', color: INK_DIM, fontSize: '0.46em' }}>$</span>
-              <AnimatedNumber value={totalMonthly}/>
-            </h1>
-            <div style={{ marginTop: 10, font: "400 clamp(36px, 4.2vw, 64px)/1 var(--font-serif)", color: INK_MUTED, fontStyle: 'italic', letterSpacing: '-0.02em' }}>/mo</div>
-            <p style={{ font: "400 20px/1.5 var(--font-display)", color: INK_MUTED, marginTop: 20, maxWidth: 680 }}>
-              That&apos;s what your assets <em style={{ fontFamily: "var(--font-serif)", fontStyle: 'italic', color: INK, fontSize: 22 }}>could</em> be earning each month based on live APYs. Read-only — nothing to sign, nothing moves.
+            {/* ── Hero number ── */}
+            <div style={{ display: 'flex', alignItems: 'baseline', gap: isMobile ? 8 : 14, flexWrap: 'wrap' }}>
+              <h1 style={{ font: `400 clamp(72px, 13vw, 160px)/1 var(--font-serif)`, letterSpacing: '-0.02em', margin: 0, color: INK, display: 'flex', alignItems: 'baseline', gap: 4 }}>
+                <span style={{ font: 'inherit', color: INK_DIM, fontSize: '0.46em' }}>$</span>
+                <AnimatedNumber value={totalMonthly}/>
+              </h1>
+              <span style={{ font: `400 clamp(28px, 4vw, 56px)/1 var(--font-serif)`, color: INK_MUTED, fontStyle: 'italic', letterSpacing: '-0.02em' }}>/mo</span>
+            </div>
+
+            <p style={{ font: "400 clamp(16px, 1.6vw, 20px)/1.5 var(--font-display)", color: INK_MUTED, marginTop: 20, maxWidth: 680 }}>
+              That&apos;s what your assets <em style={{ fontFamily: "var(--font-serif)", fontStyle: 'italic', color: INK, fontSize: 22 }}>could</em> be earning each month based on live APYs — if you deploy each asset to its best protocol. Read-only, nothing to sign.
             </p>
             <div style={{ display: 'flex', gap: 12, marginTop: 32, flexWrap: 'wrap' }}>
-              <button onClick={onShare} style={primaryBtnStyle}><ShareIcon/> Share</button>
+              <button onClick={onShare} style={primaryBtnStyle}><ShareIcon/> Share my results</button>
               <button onClick={() => alert('Chat with Earny — coming soon.')} style={secondaryBtnStyle}><ChatIcon/> Chat with Earny</button>
             </div>
           </>
@@ -536,21 +571,21 @@ function Results({ result, onShare, onReset, onOpenProto }: {
 
       {opportunities.length > 0 && (
         <>
-        <section style={{ padding: '24px 40px 80px', maxWidth: 1200, margin: '0 auto' }}>
-          <h2 style={{ font: "400 clamp(32px, 3.2vw, 44px)/1.1 var(--font-serif)", letterSpacing: '-0.01em', margin: '0 0 8px' }}>Where the money is</h2>
-          <div style={{ font: "500 14px/1 var(--font-display)", color: INK_DIM, marginBottom: 24 }}>
+        <section style={{ padding: isMobile ? '0 16px 60px' : '0 40px 60px', maxWidth: 1200, margin: '0 auto' }}>
+          <h2 style={{ font: "400 clamp(28px, 3.2vw, 44px)/1.1 var(--font-serif)", letterSpacing: '-0.01em', margin: '0 0 8px' }}>Where the money is</h2>
+          <div style={{ font: "500 14px/1 var(--font-display)", color: INK_DIM, marginBottom: 20 }}>
             {opportunities.length} live {opportunities.length === 1 ? 'opportunity' : 'opportunities'} · APYs refresh every 15 min
           </div>
-          <div style={{ display: 'grid', gap: 12 }}>
+          <div style={{ display: 'grid', gap: 10 }}>
             {opportunities.map((p, i) => <ProtoCard key={p.id} p={p} rank={i + 1} onOpen={() => onOpenProto(p)}/>)}
           </div>
 
-          <div style={{ marginTop: 40, padding: 24, background: PAPER, borderRadius: 20, border: `1px solid ${BLUE_SOFT}`, display: 'flex', gap: 16, alignItems: 'flex-start' }}>
+          <div style={{ marginTop: 32, padding: isMobile ? '20px' : '24px', background: PAPER, borderRadius: 20, border: `1px solid ${BLUE_SOFT}`, display: 'flex', gap: 16, alignItems: 'flex-start' }}>
             <div style={{ flex: 'none', width: 40, height: 40, borderRadius: 999, background: BLUE_TINT, display: 'grid', placeItems: 'center', color: BLUE }}><InfoIcon/></div>
             <div>
               <div style={{ font: "600 15px/1.3 var(--font-display)", marginBottom: 4 }}>How we calculate this</div>
               <div style={{ font: "400 14px/1.5 var(--font-display)", color: INK_MUTED, maxWidth: 760 }}>
-                We read your token balances directly from Base chain, then fetch live APYs from DefiLlama. Monthly = <code style={{ fontFamily: 'monospace', background: 'rgba(0,0,0,0.05)', padding: '1px 5px', borderRadius: 4 }}>balance × APY ÷ 12</code>. Earny never moves your money — you decide what to do.
+                We read your token balances directly from Base chain, then fetch live APYs from DefiLlama. Monthly = <code style={{ fontFamily: 'monospace', background: 'rgba(0,0,0,0.05)', padding: '1px 5px', borderRadius: 4 }}>balance × APY ÷ 12</code>. The total shown is what you&apos;d earn deploying each asset into its single best protocol — no double-counting.
               </div>
             </div>
           </div>
@@ -569,7 +604,7 @@ function Results({ result, onShare, onReset, onOpenProto }: {
 function ProtoDetail({ p, onClose }: { p: Opportunity; onClose: () => void }) {
   return (
     <div style={{ position: 'fixed', inset: 0, background: 'rgba(10,11,26,0.55)', backdropFilter: 'blur(10px)', zIndex: 90, display: 'grid', placeItems: 'center', padding: 24, animation: 'fadein .2s' }} onClick={onClose}>
-      <div onClick={(e) => e.stopPropagation()} style={{ width: 'min(560px, 100%)', background: CREAM, borderRadius: 24, overflow: 'hidden', boxShadow: '0 40px 120px rgba(10,11,26,0.5)' }}>
+      <div onClick={(e) => e.stopPropagation()} style={{ width: 'min(560px, 100%)', background: CREAM, borderRadius: 24, overflow: 'hidden', boxShadow: '0 40px 120px rgba(10,11,26,0.5)', maxHeight: '90vh', overflowY: 'auto' }}>
         <div style={{ padding: '28px 28px 24px', background: `linear-gradient(180deg, ${p.brand}14, transparent)`, borderBottom: `1px solid rgba(10,11,26,0.06)` }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 14, marginBottom: 14 }}>
             <ProtoDisc p={p} size={48}/>
@@ -613,21 +648,21 @@ function ProtoDetail({ p, onClose }: { p: Opportunity; onClose: () => void }) {
   )
 }
 
-// ── Share overlay ─────────────────────────────────────────────────────────────
+// ── Share card ────────────────────────────────────────────────────────────────
 function ShareCard({ result }: { result: AnalyzeResult }) {
   const [scale, setScale] = useState(1)
   const cat = categoryFor(result.totalMonthly)
   const total = Math.round(result.totalMonthly)
 
   useEffect(() => {
-    const compute = () => { const maxW = Math.min(1220, window.innerWidth - 80); setScale(Math.min(1, maxW / 1200)) }
+    const compute = () => { const maxW = Math.min(1220, window.innerWidth - 48); setScale(Math.min(1, maxW / 1200)) }
     compute()
     window.addEventListener('resize', compute)
     return () => window.removeEventListener('resize', compute)
   }, [])
 
   return (
-    <div style={{ width: 1200 * scale, height: 630 * scale, overflow: 'hidden', borderRadius: 24, boxShadow: '0 40px 120px rgba(0,0,0,0.6)' }}>
+    <div style={{ width: 1200 * scale, height: 630 * scale, overflow: 'hidden', borderRadius: 20, boxShadow: '0 40px 120px rgba(0,0,0,0.6)' }}>
       <div style={{ width: 1200, height: 630, transform: `scale(${scale})`, transformOrigin: 'top left', background: INK, color: '#fff', padding: 64, fontFamily: "var(--font-display)", position: 'relative', overflow: 'hidden' }}>
         <div style={{ position: 'absolute', inset: 0, backgroundImage: `radial-gradient(rgba(46,112,234,0.18) 1.5px, transparent 1.5px)`, backgroundSize: '36px 36px', maskImage: 'radial-gradient(ellipse 80% 60% at 80% 30%, #000 30%, transparent 70%)', WebkitMaskImage: 'radial-gradient(ellipse 80% 60% at 80% 30%, #000 30%, transparent 70%)', pointerEvents: 'none' }}/>
         <div style={{ position: 'absolute', top: -120, right: -120, width: 520, height: 520, background: `radial-gradient(circle, ${BLUE_2}66 0%, transparent 70%)`, borderRadius: 999, pointerEvents: 'none' }}/>
@@ -648,13 +683,13 @@ function ShareCard({ result }: { result: AnalyzeResult }) {
           <div style={{ font: "400 190px/0.95 var(--font-serif)", letterSpacing: '-0.02em', display: 'flex', alignItems: 'baseline', gap: 8 }}>
             <span style={{ font: "400 100px/1 var(--font-serif)", opacity: 0.65 }}>$</span>
             <span>{total.toLocaleString()}</span>
+            <span style={{ font: "400 64px/1 var(--font-serif)", color: 'rgba(255,255,255,0.55)', fontStyle: 'italic' }}>/mo</span>
           </div>
-          <div style={{ marginTop: 12, font: "400 64px/1 var(--font-serif)", color: 'rgba(255,255,255,0.6)', fontStyle: 'italic', letterSpacing: '-0.02em' }}>/mo</div>
           <div style={{ font: "400 26px/1.25 var(--font-serif)", color: 'rgba(255,255,255,0.8)', marginTop: 14, fontStyle: 'italic', maxWidth: 820 }}>on the table. Earny showed me where.</div>
         </div>
 
         <div style={{ position: 'absolute', bottom: 48, left: 64, right: 64, display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', zIndex: 2 }}>
-          <div style={{ font: "400 20px/1.3 var(--font-serif)", color: 'rgba(255,255,255,0.7)', fontStyle: 'italic', maxWidth: 420 }}>Earny is your onchain CFO.</div>
+          <div style={{ font: "400 20px/1.3 var(--font-serif)", color: 'rgba(255,255,255,0.7)', fontStyle: 'italic', maxWidth: 420 }}>earny.chat — read-only, never moves your funds.</div>
           <div style={{ textAlign: 'right' }}>
             <div style={{ font: "500 12px/1 var(--font-display)", color: 'rgba(255,255,255,0.5)', marginBottom: 8, letterSpacing: '0.18em', textTransform: 'uppercase' }}>Check yours →</div>
             <div style={{ font: "600 28px/1 var(--font-display)", color: '#fff' }}>earny.chat</div>
@@ -665,19 +700,83 @@ function ShareCard({ result }: { result: AnalyzeResult }) {
   )
 }
 
+// ── Share overlay ─────────────────────────────────────────────────────────────
 function ShareOverlay({ result, onClose }: { result: AnalyzeResult; onClose: () => void }) {
+  const [copied, setCopied] = useState(false)
+  const isMobile = useIsMobile()
+  const text = buildShareText(result.totalMonthly)
+  const siteUrl = 'https://earny.chat'
+
+  const shareTwitter = useCallback(() => {
+    const url = `https://twitter.com/intent/tweet?text=${encodeURIComponent(text)}`
+    window.open(url, '_blank', 'noopener,noreferrer,width=600,height=400')
+  }, [text])
+
+  const shareFarcaster = useCallback(() => {
+    const url = `https://warpcast.com/~/compose?text=${encodeURIComponent(text)}`
+    window.open(url, '_blank', 'noopener,noreferrer,width=600,height=500')
+  }, [text])
+
+  const copyLink = useCallback(() => {
+    navigator.clipboard.writeText(siteUrl).then(() => {
+      setCopied(true)
+      setTimeout(() => setCopied(false), 2000)
+    })
+  }, [])
+
   return (
-    <div style={{ position: 'fixed', inset: 0, background: 'rgba(10,11,26,0.75)', backdropFilter: 'blur(8px)', zIndex: 100, display: 'grid', placeItems: 'center', padding: 40, animation: 'fadein .2s', overflow: 'auto' }} onClick={onClose}>
-      <div onClick={(e) => e.stopPropagation()} style={{ display: 'flex', flexDirection: 'column', gap: 20, maxWidth: 1220 }}>
-        <ShareCard result={result}/>
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
-          <div style={{ font: "400 13px/1.4 var(--font-display)", color: 'rgba(255,255,255,0.7)', maxWidth: 460 }}>1200×630 · feed-ready. Right-click the card to save as PNG.</div>
-          <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
-            <button style={shareBtnStyle}><TwitterIcon/> Post to X</button>
-            <button style={shareBtnStyle}><DownloadIcon/> Download</button>
-            <button style={{ ...shareBtnStyle, background: 'rgba(255,255,255,0.15)', color: '#fff' }}>Copy link</button>
-            <button onClick={onClose} style={{ ...shareBtnStyle, background: 'rgba(255,255,255,0.08)', color: '#fff' }}>Close</button>
+    <div
+      style={{ position: 'fixed', inset: 0, background: 'rgba(10,11,26,0.8)', backdropFilter: 'blur(10px)', zIndex: 100, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: isMobile ? 20 : 40, animation: 'fadein .2s', overflow: 'auto' }}
+      onClick={onClose}
+    >
+      <div onClick={(e) => e.stopPropagation()} style={{ display: 'flex', flexDirection: 'column', gap: 20, width: '100%', maxWidth: 1220 }}>
+        {/* Share card preview */}
+        {!isMobile && <ShareCard result={result}/>}
+
+        {/* Action panel */}
+        <div style={{ background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: 20, padding: isMobile ? '24px 20px' : '28px 32px' }}>
+          <div style={{ marginBottom: 20 }}>
+            <div style={{ font: "600 18px/1.2 var(--font-display)", color: '#fff', marginBottom: 6 }}>Share your results</div>
+            <div style={{ font: "400 14px/1.5 var(--font-display)", color: 'rgba(255,255,255,0.55)' }}>
+              Let your network know what they&apos;re missing — it takes 10 seconds.
+            </div>
           </div>
+
+          {/* Preview text box */}
+          <div style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.08)', borderRadius: 14, padding: '16px 18px', marginBottom: 20 }}>
+            <div style={{ font: "400 14px/1.6 var(--font-display)", color: 'rgba(255,255,255,0.75)', whiteSpace: 'pre-line' }}>{text}</div>
+          </div>
+
+          {/* Buttons */}
+          <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
+            <button
+              onClick={shareTwitter}
+              style={{ ...shareBtnStyle, background: '#000', color: '#fff', flex: isMobile ? '1 1 auto' : 'none', justifyContent: 'center', padding: '14px 20px' }}
+            >
+              <TwitterIcon/> Post to X
+            </button>
+            <button
+              onClick={shareFarcaster}
+              style={{ ...shareBtnStyle, background: '#7C3AED', color: '#fff', flex: isMobile ? '1 1 auto' : 'none', justifyContent: 'center', padding: '14px 20px' }}
+            >
+              <FarcasterIcon/> Cast on Farcaster
+            </button>
+            <button
+              onClick={copyLink}
+              style={{ ...shareBtnStyle, background: copied ? '#10B981' : 'rgba(255,255,255,0.12)', color: '#fff', flex: isMobile ? '1 1 auto' : 'none', justifyContent: 'center', padding: '14px 20px', transition: 'background .2s' }}
+            >
+              {copied ? <><CheckIcon/> Copied!</> : <><CopyIcon/> Copy link</>}
+            </button>
+            <button onClick={onClose} style={{ ...shareBtnStyle, background: 'rgba(255,255,255,0.06)', color: 'rgba(255,255,255,0.6)', marginLeft: 'auto', padding: '14px 20px' }}>
+              Close
+            </button>
+          </div>
+
+          {!isMobile && (
+            <div style={{ marginTop: 16, font: "400 12px/1.4 var(--font-display)", color: 'rgba(255,255,255,0.35)' }}>
+              Right-click the card above to save as an image.
+            </div>
+          )}
         </div>
       </div>
     </div>
@@ -688,7 +787,7 @@ function ShareOverlay({ result, onClose }: { result: AnalyzeResult; onClose: () 
 function ErrorState({ message, onReset }: { message: string; onReset: () => void }) {
   return (
     <div style={{ minHeight: '100vh', background: INK, color: '#fff', fontFamily: "var(--font-display)", display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 24, padding: 40 }}>
-      <div style={{ font: "400 48px/1 var(--font-serif)" }}>Something went wrong</div>
+      <div style={{ font: "400 clamp(32px, 6vw, 48px)/1 var(--font-serif)" }}>Something went wrong</div>
       <div style={{ font: "400 18px/1.5 var(--font-display)", color: 'rgba(255,255,255,0.6)', maxWidth: 480, textAlign: 'center' }}>{message}</div>
       <button onClick={onReset} style={{ ...primaryBtnStyle, marginTop: 8 }}>Try again</button>
     </div>
