@@ -51,7 +51,7 @@ export async function GET(req: NextRequest) {
   const MUTED = 'rgba(255,255,255,0.55)'
   const DIM   = 'rgba(255,255,255,0.38)'
 
-  return new ImageResponse(
+  const image = new ImageResponse(
     (
       <div
         style={{
@@ -135,4 +135,8 @@ export async function GET(req: NextRequest) {
       ],
     }
   )
+  // Output is deterministic from query params; cache aggressively so crawlers
+  // (Twitter/X, Farcaster, etc.) don't re-render fonts on every hit.
+  image.headers.set('Cache-Control', 'public, max-age=31536000, s-maxage=31536000, immutable')
+  return image
 }

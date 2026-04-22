@@ -15,27 +15,55 @@ const safe = (n: number, fallback = 0) => (Number.isFinite(n) ? n : fallback)
 const round2 = (n: number) => Math.round(safe(n) * 100) / 100
 const round1 = (n: number) => Math.round(safe(n) * 10) / 10
 
+type Outcome = { ok: true; result: AnalyzeResult } | { ok: false; status: number; error: string }
+
+// Request coalescing: if N users request the same wallet in the same instant,
+// run the analysis once and hand each caller the same promise. Dramatically
+// reduces upstream load during viral spikes where a few wallets get re-viewed.
+const inflight = new Map<string, Promise<Outcome>>()
+
+async function getOrCompute(address: string): Promise<Outcome> {
+  const existing = inflight.get(address)
+  if (existing) return existing
+  const p = computeAnalysis(address).finally(() => inflight.delete(address))
+  inflight.set(address, p)
+  return p
+}
+
 export async function GET(req: NextRequest) {
   const ip = clientIp(req)
   const rl = rateLimit(ip)
   if (!rl.ok) {
     return NextResponse.json(
       { error: 'Too many requests, slow down.' },
-      { status: 429, headers: { 'Retry-After': String(rl.retryAfter) } }
+      { status: 429, headers: { 'Retry-After': String(rl.retryAfter), 'Cache-Control': 'no-store' } }
     )
   }
 
   const raw = req.nextUrl.searchParams.get('address') ?? ''
   // Reject obviously malicious input before touching upstreams.
   if (raw.length > 64) {
-    return NextResponse.json({ error: 'Invalid Ethereum address' }, { status: 400 })
+    return NextResponse.json({ error: 'Invalid Ethereum address' }, { status: 400, headers: { 'Cache-Control': 'no-store' } })
   }
   // Normalize casing so non-checksummed input (common when pasted) is accepted.
   const address = /^0x[0-9a-fA-F]{40}$/.test(raw.trim()) ? raw.trim().toLowerCase() : ''
   if (!address || !isAddress(address)) {
-    return NextResponse.json({ error: 'Invalid Ethereum address' }, { status: 400 })
+    return NextResponse.json({ error: 'Invalid Ethereum address' }, { status: 400, headers: { 'Cache-Control': 'no-store' } })
   }
 
+  const outcome = await getOrCompute(address)
+  if (!outcome.ok) {
+    return NextResponse.json({ error: outcome.error }, { status: outcome.status, headers: { 'Cache-Control': 'no-store' } })
+  }
+  // Cache successful analyses at the edge for 2 minutes, serve stale up to 10
+  // more while revalidating. Same-address refreshes during a viral moment hit
+  // the CDN, not our upstreams.
+  return NextResponse.json(outcome.result, {
+    headers: { 'Cache-Control': 'public, s-maxage=120, stale-while-revalidate=600' },
+  })
+}
+
+async function computeAnalysis(address: string): Promise<Outcome> {
   try {
     // Critical dependencies (balances, pools, price) must succeed; enrichments
     // (positions, firstInbound) degrade gracefully so a flaky upstream doesn't
@@ -50,15 +78,15 @@ export async function GET(req: NextRequest) {
 
     if (balancesR.status === 'rejected') {
       console.error('[analyze] balances failed', balancesR.reason)
-      return NextResponse.json({ error: 'Could not read wallet balances. Try again shortly.' }, { status: 502 })
+      return { ok: false, status: 502, error: 'Could not read wallet balances. Try again shortly.' }
     }
     if (poolsR.status === 'rejected') {
       console.error('[analyze] pools failed', poolsR.reason)
-      return NextResponse.json({ error: 'Yield data temporarily unavailable. Try again shortly.' }, { status: 503 })
+      return { ok: false, status: 503, error: 'Yield data temporarily unavailable. Try again shortly.' }
     }
     if (ethPriceR.status === 'rejected') {
       console.error('[analyze] eth price failed', ethPriceR.reason)
-      return NextResponse.json({ error: 'Price data temporarily unavailable. Try again shortly.' }, { status: 503 })
+      return { ok: false, status: 503, error: 'Price data temporarily unavailable. Try again shortly.' }
     }
 
     const balances   = balancesR.value
@@ -287,10 +315,10 @@ export async function GET(req: NextRequest) {
       allRates,
     }
 
-    return NextResponse.json(result)
+    return { ok: true, result }
   } catch (err) {
     console.error('[analyze]', err)
     const message = err instanceof Error ? err.message : 'Analysis failed'
-    return NextResponse.json({ error: message }, { status: 500 })
+    return { ok: false, status: 500, error: message }
   }
 }
