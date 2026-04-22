@@ -50,6 +50,11 @@ export interface Archetype {
   label: string
   tagline: string
   shareVerb: string
+  rarity?: {
+    percent: number
+    total:   number
+    count:   number
+  }
 }
 
 export interface AnalyzeResult {

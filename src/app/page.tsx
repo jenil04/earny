@@ -1047,6 +1047,19 @@ function Results({ result, onShare, onReset, onOpenProto }: {
           </div>
         ) : (
           <>
+            {result.archetype && (
+              <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap', marginBottom: 14 }}>
+                <div style={{ font: "500 11px/1 var(--font-display)", color: INK_MUTED, letterSpacing: '0.16em', textTransform: 'uppercase' }}>You are</div>
+                <div style={{ font: "500 13px/1 var(--font-display)", color: INK, padding: '7px 11px', borderRadius: 999, background: PAPER, border: `1px solid rgba(10,11,26,0.1)` }}>{result.archetype.label}</div>
+                {result.archetype.rarity && (
+                  <div style={{ display: 'inline-flex', alignItems: 'center', gap: 6, font: "500 12px/1 var(--font-display)", color: INK, padding: '7px 11px', borderRadius: 999, background: 'linear-gradient(90deg, rgba(52,199,89,0.14), rgba(52,199,89,0.06))', border: '1px solid rgba(52,199,89,0.3)' }}>
+                    <span style={{ width: 6, height: 6, borderRadius: 999, background: '#34c759' }}/>
+                    {result.archetype.rarity.percent}% of wallets
+                  </div>
+                )}
+              </div>
+            )}
+
             {/* ── Hero number ── */}
             <div style={{ display: 'flex', alignItems: 'baseline', gap: isMobile ? 8 : 14, flexWrap: 'wrap' }}>
               <h1 style={{ font: `400 clamp(72px, 13vw, 160px)/1 var(--font-serif)`, letterSpacing: '-0.02em', margin: 0, color: INK, display: 'flex', alignItems: 'baseline', gap: 4 }}>
@@ -1202,7 +1215,15 @@ function ShareCard({ result, captureRef }: { result: AnalyzeResult; captureRef?:
 
         {/* Middle — archetype is the star */}
         <div style={{ marginTop: 36, position: 'relative', zIndex: 2, flex: 1, display: 'flex', flexDirection: 'column', justifyContent: 'center' }}>
-          <div style={{ font: "400 28px/1 var(--font-serif)", color: 'rgba(255,255,255,0.7)', marginBottom: 10, fontStyle: 'italic' }}>I am</div>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 14, marginBottom: 10 }}>
+            <div style={{ font: "400 28px/1 var(--font-serif)", color: 'rgba(255,255,255,0.7)', fontStyle: 'italic' }}>I am</div>
+            {result.archetype.rarity && (
+              <div style={{ display: 'inline-flex', alignItems: 'center', gap: 8, padding: '6px 14px', background: `linear-gradient(90deg, ${BLUE_2}44, ${BLUE_2}11)`, border: `1px solid ${BLUE_2}77`, borderRadius: 999, font: "700 12px/1 var(--font-display)", letterSpacing: '0.18em', textTransform: 'uppercase', color: SKY }}>
+                <span style={{ width: 6, height: 6, background: GREEN, borderRadius: 999 }}/>
+                {result.archetype.rarity.percent}% of wallets
+              </div>
+            )}
+          </div>
           <div style={{ font: "400 clamp(96px, 11vw, 148px)/0.95 var(--font-serif)", letterSpacing: '-0.02em' }}>
             {result.archetype.label}
           </div>

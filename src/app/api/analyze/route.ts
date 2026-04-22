@@ -7,6 +7,7 @@ import { getBasePools, getEthPrice, findBestPool } from '@/lib/defi-llama'
 import { PROTOCOL_DEFS } from '@/lib/protocols'
 import { rateLimit, clientIp } from '@/lib/rate-limit'
 import { pickArchetype } from '@/lib/archetype'
+import { getRarity, recordWallet } from '@/lib/rarity'
 import type { Opportunity, AnalyzeResult, Rate, CurrentPosition } from '@/types'
 
 // Ensure every numeric value in the JSON response is a finite number.
@@ -277,6 +278,12 @@ async function computeAnalysis(address: string): Promise<Outcome> {
       hasDelta: currentPositions.some(p => p.delta > 0.01),
     })
 
+    // Rarity — read the current distribution (cached 30s) and fire off an
+    // async write to update counters. Both are no-ops if Upstash isn't set.
+    const rarity = await getRarity(archetype.id)
+    recordWallet(address, archetype.id)
+    const archetypeWithRarity = rarity ? { ...archetype, rarity } : archetype
+
     // All protocol rates regardless of user balance, for the calculator
     const allRates: Rate[] = []
     const seenRate = new Set<string>()
@@ -303,7 +310,7 @@ async function computeAnalysis(address: string): Promise<Outcome> {
       lifetimeMissed,
       earliestInboundIso,
       idleDays,
-      archetype,
+      archetype: archetypeWithRarity,
       positions: currentPositions,
       balances: {
         ETH:   safe(balances.ETH),

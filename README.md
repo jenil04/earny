@@ -48,8 +48,10 @@ Open [http://localhost:3000](http://localhost:3000).
 |---|---|---|
 | `ALCHEMY_API_KEY` | Yes | [alchemy.com](https://alchemy.com) — free tier is plenty |
 | `BASE_RPC_URL` | Recommended | Same Alchemy key: `https://base-mainnet.g.alchemy.com/v2/<KEY>` — falls back to `mainnet.base.org` if omitted, but that's rate-limited |
+| `UPSTASH_REDIS_REST_URL` | Optional | [upstash.com](https://upstash.com) — enables the "X% of wallets" rarity counter on archetypes |
+| `UPSTASH_REDIS_REST_TOKEN` | Optional | From the same Upstash database |
 
-Without `ALCHEMY_API_KEY`, the lifetime-missed and archetype features degrade (they still render, but without history-based signals).
+Without `ALCHEMY_API_KEY`, the lifetime-missed and archetype features degrade (they still render, but without history-based signals). Without Upstash, rarity is simply hidden — everything else still works.
 
 ## Project layout
 
