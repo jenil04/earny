@@ -103,7 +103,7 @@ export async function GET(req: NextRequest) {
 
         {/* Footer */}
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', position: 'relative', zIndex: 2, width: '100%' }}>
-          <span style={{ fontSize: 20, color: MUTED, fontStyle: 'italic', fontFamily: '"InstrumentSerif"' }}>earny.chat — read-only, never moves your funds.</span>
+          <span style={{ fontSize: 20, color: MUTED, fontStyle: 'italic', fontFamily: '"InstrumentSerif"' }}>earny.chat · read-only, never moves your funds.</span>
           <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 6 }}>
             <span style={{ fontSize: 13, color: 'rgba(255,255,255,0.4)', letterSpacing: '0.2em', textTransform: 'uppercase', fontFamily: '"FunnelDisplay"' }}>Check yours →</span>
             <span style={{ fontSize: 32, fontWeight: 700, color: '#fff', fontFamily: '"FunnelDisplay"' }}>earny.chat</span>

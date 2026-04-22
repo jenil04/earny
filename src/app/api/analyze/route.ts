@@ -59,7 +59,7 @@ export async function GET(req: NextRequest) {
         excludeSymbols: def.llamaExclude,
       })
 
-      const apy = pool?.apy ?? def.fallbackApy
+      const apy = def.fallbackApy ?? pool?.apy
       if (!apy) continue
 
       const monthly = (balanceUsd * apy) / 100 / 12
@@ -85,6 +85,7 @@ export async function GET(req: NextRequest) {
         trust:    def.trust,
         steps:    def.steps,
         link:     def.link,
+        variable: def.variable,
       })
     }
 
@@ -100,7 +101,7 @@ export async function GET(req: NextRequest) {
       }, 0) * 100
     ) / 100
 
-    // All protocol rates regardless of user balance — for the calculator
+    // All protocol rates regardless of user balance, for the calculator
     const allRates: Rate[] = []
     const seenRate = new Set<string>()
     for (const def of PROTOCOL_DEFS) {
@@ -110,14 +111,14 @@ export async function GET(req: NextRequest) {
         sortBy: def.llamaSortBy,
         excludeSymbols: def.llamaExclude,
       })
-      const apy = pool?.apy ?? def.fallbackApy
+      const apy = def.fallbackApy ?? pool?.apy
       if (!apy) continue
       seenRate.add(def.id)
       const existing = allRates.find(r => r.name === def.name)
       if (existing) {
         if (apy > existing.apy) existing.apy = Math.round(apy * 10) / 10
       } else {
-        allRates.push({ id: def.id, name: def.name, logo: def.logo, brand: def.brand, initials: def.initials, asset: def.token === 'ETH' ? 'ETH' : def.token === 'USDC' ? 'USDC' : 'USDbC', apy: Math.round(apy * 10) / 10 })
+        allRates.push({ id: def.id, name: def.name, logo: def.logo, brand: def.brand, initials: def.initials, asset: def.token === 'ETH' ? 'ETH' : def.token === 'USDC' ? 'USDC' : 'USDbC', apy: Math.round(apy * 10) / 10, variable: def.variable })
       }
     }
     allRates.sort((a, b) => b.apy - a.apy)

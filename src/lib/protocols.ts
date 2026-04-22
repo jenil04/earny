@@ -21,6 +21,8 @@ export interface ProtocolDef {
   llamaExclude: string[]  // symbol fragments to exclude
   // fallback APY if DefiLlama has no matching pool
   fallbackApy?: number
+  // if true, render APY as "Variable" instead of a fixed number (monthly still uses fallbackApy)
+  variable?: boolean
 }
 
 export const PROTOCOL_DEFS: ProtocolDef[] = [
@@ -42,6 +44,7 @@ export const PROTOCOL_DEFS: ProtocolDef[] = [
     llamaMinTvl: 100_000,
     llamaSortBy: 'apy',
     llamaExclude: [],
+    fallbackApy: 5.2,
   },
   {
     id: 'fluid-usdc',
@@ -60,6 +63,7 @@ export const PROTOCOL_DEFS: ProtocolDef[] = [
     llamaMinTvl: 1_000_000,
     llamaSortBy: 'apy',
     llamaExclude: [],
+    fallbackApy: 8.9,
   },
   {
     id: 'morpho-usdc',
@@ -71,13 +75,14 @@ export const PROTOCOL_DEFS: ProtocolDef[] = [
     detail: 'Morpho curated vaults (Steakhouse, Gauntlet) automatically route your USDC to the highest-yielding underlying market. Billions in TVL.',
     trust: 3,
     link: 'https://app.morpho.org',
-    steps: ['Open app.morpho.org on Base', 'Browse curated USDC vaults', 'Deposit — vault rebalances automatically'],
+    steps: ['Open app.morpho.org on Base', 'Browse curated USDC vaults', 'Deposit, vault rebalances automatically'],
     token: 'USDC',
     llamaProject: 'morpho-v1',
     llamaSymbol: 'USDC',
     llamaMinTvl: 10_000_000,
-    llamaSortBy: 'tvl',  // take highest-TVL for stability (all at ~4%)
+    llamaSortBy: 'tvl',
     llamaExclude: [],
+    fallbackApy: 7.8,
   },
   {
     id: 'aave-usdc',
@@ -89,13 +94,14 @@ export const PROTOCOL_DEFS: ProtocolDef[] = [
     detail: 'The largest, most battle-tested lending market in DeFi. Lower APY than Compound but virtually bulletproof security record.',
     trust: 3,
     link: 'https://app.aave.com',
-    steps: ['Open Aave on Base', 'Supply USDC', 'Earn — or borrow against it later'],
+    steps: ['Open Aave on Base', 'Supply USDC', 'Earn, or borrow against it later'],
     token: 'USDC',
     llamaProject: 'aave-v3',
     llamaSymbol: 'USDC',
     llamaMinTvl: 1_000_000,
     llamaSortBy: 'apy',
     llamaExclude: [],
+    fallbackApy: 4.3,
   },
   {
     id: 'moonwell-usdc',
@@ -114,6 +120,7 @@ export const PROTOCOL_DEFS: ProtocolDef[] = [
     llamaMinTvl: 100_000,
     llamaSortBy: 'apy',
     llamaExclude: [],
+    fallbackApy: 6.1,
   },
 
   // ── ETH / WETH ───────────────────────────────────────────────────────────────
@@ -127,13 +134,14 @@ export const PROTOCOL_DEFS: ProtocolDef[] = [
     detail: 'Morpho ETH curated vaults match lenders and borrowers directly, consistently outperforming Aave and Compound on ETH yields.',
     trust: 3,
     link: 'https://app.morpho.org',
-    steps: ['Open app.morpho.org on Base', 'Browse ETH / WETH vaults', 'Deposit — interest accrues every block'],
+    steps: ['Open app.morpho.org on Base', 'Browse ETH / WETH vaults', 'Deposit, interest accrues every block'],
     token: 'ETH',
     llamaProject: 'morpho-v1',
     llamaSymbol: 'ETH',
     llamaMinTvl: 1_000_000,
     llamaSortBy: 'apy',
     llamaExclude: ['WSTETH', 'RSETH', 'WEETH', 'CBETH', 'GTMSE', 'MSETH'],
+    fallbackApy: 3.4,
   },
   {
     id: 'fluid-eth',
@@ -142,7 +150,7 @@ export const PROTOCOL_DEFS: ProtocolDef[] = [
     brand: '#5DD4D1',
     initials: 'FL',
     logo: '/logos/fluid.png',
-    detail: 'Fluid accepts native ETH directly — no wrapping needed. Combined lending + DEX activity lifts effective yield above standard markets.',
+    detail: 'Fluid accepts native ETH directly, no wrapping needed. Combined lending + DEX activity lifts effective yield above standard markets.',
     trust: 2,
     link: 'https://fluid.instadapp.io',
     steps: ['Open fluid.instadapp.io', 'Pick the ETH lending pool', 'Deposit native ETH'],
@@ -152,6 +160,7 @@ export const PROTOCOL_DEFS: ProtocolDef[] = [
     llamaMinTvl: 1_000_000,
     llamaSortBy: 'apy',
     llamaExclude: ['WSTETH'],
+    fallbackApy: 3.6,
   },
   {
     id: 'aave-weth',
@@ -170,6 +179,7 @@ export const PROTOCOL_DEFS: ProtocolDef[] = [
     llamaMinTvl: 1_000_000,
     llamaSortBy: 'apy',
     llamaExclude: ['WSTETH', 'RSETH', 'WEETH'],
+    fallbackApy: 2.5,
   },
 
   // ── Ample ────────────────────────────────────────────────────────────────────
@@ -180,10 +190,10 @@ export const PROTOCOL_DEFS: ProtocolDef[] = [
     brand: '#199B61',
     initials: 'AM',
     logo: '/ample.svg',
-    detail: 'Ample routes your USDC through multiple yield strategies (currently Euler and Morpho) to maximise returns, then distributes the pooled yield as weekly prize draws. Your principal is always safe and withdrawable — you just swap APY for a chance at a bigger payout.',
-    trust: 2,
+    detail: 'Ample routes your USDC through multiple yield strategies (currently Euler and Morpho) to maximise returns, then distributes the pooled yield as weekly prize draws. Your principal is always safe and withdrawable. You swap a steady APY for a chance at a bigger payout.',
+    trust: 3,
     link: 'https://ample.money',
-    steps: ['Open ample.money', 'Connect your wallet on Base', 'Deposit USDC — withdraw anytime, no lockups'],
+    steps: ['Open ample.money', 'Connect your wallet on Base', 'Deposit USDC, withdraw anytime, no lockups'],
     token: 'USDC',
     alwaysShow: true,
     llamaProject: 'ample',
@@ -191,7 +201,8 @@ export const PROTOCOL_DEFS: ProtocolDef[] = [
     llamaMinTvl: 0,
     llamaSortBy: 'apy',
     llamaExclude: [],
-    fallbackApy: 5.0,
+    fallbackApy: 10.5,
+    variable: true,
   },
 
   // ── Arma ────────────────────────────────────────────────────────────────────
@@ -202,16 +213,17 @@ export const PROTOCOL_DEFS: ProtocolDef[] = [
     brand: '#E85D04',
     initials: 'AR',
     logo: '/arma.svg',
-    detail: 'Arma aggregates across multiple yield protocols on Base to maximise your USDC return — automatically routing capital to wherever rates are highest. New entrant with competitive yields and a capital-efficient design.',
-    trust: 1,
+    detail: 'Arma aggregates across multiple yield protocols on Base to maximise your USDC return, automatically routing capital to wherever rates are highest. New entrant with competitive yields and a capital-efficient design.',
+    trust: 2,
     link: 'https://arma.xyz',
-    steps: ['Open arma.xyz', 'Connect your wallet on Base', 'Supply USDC — Arma routes to the best rate'],
+    steps: ['Open arma.xyz', 'Connect your wallet on Base', 'Supply USDC, Arma routes to the best rate'],
     token: 'USDC',
+    alwaysShow: true,
     llamaProject: 'arma',
     llamaSymbol: 'USDC',
     llamaMinTvl: 0,
     llamaSortBy: 'apy',
     llamaExclude: [],
-    fallbackApy: 6.5,
+    fallbackApy: 15,
   },
 ]

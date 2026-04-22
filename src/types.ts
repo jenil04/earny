@@ -14,6 +14,7 @@ export interface Opportunity {
   trust: number
   steps: string[]
   link: string
+  variable?: boolean
 }
 
 export interface Rate {
@@ -24,7 +25,11 @@ export interface Rate {
   initials: string
   asset: string
   apy: number
+  variable?: boolean
 }
+
+export type CategoryId = 'yield' | 'launch' | 'founder' | 'airdrop'
+export type RiskLevel = 'low' | 'medium' | 'high'
 
 export interface AnalyzeResult {
   address: string

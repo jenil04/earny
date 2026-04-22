@@ -1,7 +1,14 @@
 'use client'
 
-import { useState, useEffect, useRef, useCallback } from 'react'
-import type { Opportunity, AnalyzeResult, Rate } from '@/types'
+import { useState, useEffect, useRef, useCallback, useMemo } from 'react'
+import type { Opportunity, AnalyzeResult, CategoryId, RiskLevel } from '@/types'
+import {
+  CATEGORIES, RISK_STYLE, TOOLS_BY_CATEGORY,
+  AUDIENCE_TIERS, LAUNCH_TYPES, estimateLaunch,
+  FOUNDER_CATEGORIES, FOUNDER_STAGES, FOUNDER_FUNDING, estimateFounder,
+  AIRDROP_TIERS, estimateAirdrop,
+  type ToolDef,
+} from '@/lib/categories'
 
 // ── Palette ──────────────────────────────────────────────────────────────────
 const INK       = '#0A0B1A'
@@ -32,7 +39,7 @@ function useIsMobile(bp = 768) {
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 function formatAddr(a: string) {
-  if (!a) return '—'
+  if (!a) return '–'
   if (a.startsWith('0x') && a.length > 12) return a.slice(0, 10) + '…' + a.slice(-6)
   return a
 }
@@ -47,13 +54,7 @@ function categoryFor(monthly: number) {
 }
 
 function buildShareText(totalMonthly: number) {
-  return `I could be earning $${totalMonthly.toFixed(2)}/mo on Base — and I wasn't.\n\nEarny showed me exactly where my assets should be working.\n\nCheck yours 👇\nearny.chat`
-}
-
-function calcOgUrl(totalMonthly: number) {
-  const base = typeof window !== 'undefined' ? window.location.origin : 'https://earny.chat'
-  const category = categoryFor(totalMonthly)
-  return `${base}/api/og?monthly=${encodeURIComponent(totalMonthly.toFixed(2))}&category=${encodeURIComponent(category)}`
+  return `I could be earning $${totalMonthly.toFixed(2)}/mo on Base, and I wasn't.\n\nEarny showed me exactly where my assets should be working.\n\nCheck yours 👇\nearny.chat`
 }
 
 // ── Shared styles ─────────────────────────────────────────────────────────────
@@ -62,11 +63,6 @@ const primaryBtnStyle: React.CSSProperties = {
   border: 'none', padding: '16px 24px', borderRadius: 999, cursor: 'pointer',
   display: 'inline-flex', alignItems: 'center', gap: 10,
   boxShadow: '0 8px 24px rgba(25,109,253,0.3)',
-}
-const secondaryBtnStyle: React.CSSProperties = {
-  font: "600 16px/1 var(--font-display)", background: '#fff', color: INK,
-  border: `1px solid rgba(10,11,26,0.12)`, padding: '16px 24px', borderRadius: 999,
-  cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: 10,
 }
 const shareBtnStyle: React.CSSProperties = {
   font: "600 14px/1 var(--font-display)", background: '#fff', color: INK,
@@ -97,7 +93,6 @@ function FarcasterIcon() { return <svg width="14" height="14" viewBox="0 0 1000 
 function CopyIcon() { return <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg> }
 function CheckIcon() { return <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M20 6L9 17l-5-5"/></svg> }
 function DownloadIcon() { return <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 4v12M6 10l6 6 6-6M4 20h16"/></svg> }
-function CalcIcon() { return <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="4" y="2" width="16" height="20" rx="2"/><line x1="8" y1="6" x2="16" y2="6"/><line x1="8" y1="10" x2="10" y2="10"/><line x1="14" y1="10" x2="16" y2="10"/><line x1="8" y1="14" x2="10" y2="14"/><line x1="14" y1="14" x2="16" y2="14"/><line x1="8" y1="18" x2="10" y2="18"/><line x1="14" y1="18" x2="16" y2="18"/></svg> }
 
 // ── Decorative ────────────────────────────────────────────────────────────────
 function GridBackdrop() {
@@ -220,18 +215,18 @@ function SiteFooter({ dark = true }: { dark?: boolean }) {
   const tokensLogo = dark ? '/tokens-logo.svg' : '/tokens-logo-dark.svg'
   return (
     <footer style={{ borderTop: `1px solid ${border}`, font: "400 13px/1.4 var(--font-display)", color: fg }}>
-      {/* Tokens attribution — centered */}
+      {/* Tokens attribution, centered */}
       <div style={{ padding: isMobile ? '20px 20px 16px' : '28px 40px 20px', display: 'flex', justifyContent: 'center', alignItems: 'center', gap: 10, borderBottom: `1px solid ${border}` }}>
         <span style={{ opacity: 0.6 }}>A product by</span>
         {/* eslint-disable-next-line @next/next/no-img-element */}
         <img src={tokensLogo} alt="Tokens" style={{ height: 18, display: 'block', opacity: 0.85 }}/>
       </div>
-      <div style={{ padding: isMobile ? '16px 20px' : '20px 40px', display: 'flex', flexWrap: 'wrap', gap: 16, justifyContent: 'space-between', alignItems: 'center' }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-          <span>Built by</span>
+      <div style={{ padding: isMobile ? '16px 20px' : '20px 40px', display: 'flex', flexDirection: isMobile ? 'column' : 'row', flexWrap: 'wrap', gap: isMobile ? 8 : 16, justifyContent: isMobile ? 'center' : 'space-between', alignItems: 'center', textAlign: isMobile ? 'center' : 'left' }}>
+        <div>
+          Built by{' '}
           <a href="https://x.com/jenilt" target="_blank" rel="noopener noreferrer" style={{ color: fgStrong, textDecoration: 'none', fontWeight: 600 }}>@jenilt</a>
         </div>
-        <div>earny.chat — read-only, never moves your funds.</div>
+        <div>earny.chat · read-only, never moves your funds.</div>
       </div>
     </footer>
   )
@@ -258,7 +253,7 @@ function Landing({ onAnalyze }: { onAnalyze: (addr: string) => void }) {
       <GridBackdrop/>
       <AuraBlob/>
 
-      <header style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: isMobile ? '20px 20px' : '26px 40px', position: 'relative', zIndex: 3 }}>
+      <header style={{ display: 'flex', alignItems: 'center', justifyContent: isMobile ? 'center' : 'space-between', padding: isMobile ? '20px 20px' : '26px 40px', position: 'relative', zIndex: 3 }}>
         {/* eslint-disable-next-line @next/next/no-img-element */}
         <img src="/earny-logo.svg" alt="Earny" style={{ height: 28, display: 'block' }}/>
       </header>
@@ -273,7 +268,7 @@ function Landing({ onAnalyze }: { onAnalyze: (addr: string) => void }) {
         </h1>
 
         <p style={{ font: "400 clamp(16px, 1.8vw, 22px)/1.45 var(--font-display)", color: 'rgba(255,255,255,0.68)', textAlign: 'center', maxWidth: 580, margin: '0 0 36px', padding: '0 8px' }}>
-          Earny is your onchain CFO. Paste your wallet and see exactly how much you can earn monthly.
+          Drop your wallet. See every way to earn on Base — yield, airdrops, token launches, founder revenue — matched to you in seconds.
         </p>
 
         <form
@@ -306,7 +301,7 @@ function Landing({ onAnalyze }: { onAnalyze: (addr: string) => void }) {
         <div id="how" style={{ marginTop: isMobile ? 60 : 100, display: 'grid', gridTemplateColumns: isMobile ? '1fr' : 'repeat(3, 1fr)', gap: 12, maxWidth: 980, width: '100%' }}>
           <HowStep n="01" title="Paste your wallet"       body="No signing, no connecting. Earny reads public onchain balances on Base."/>
           <HowStep n="02" title="See what you're missing" body="Every idle asset gets matched with live APYs from the top Base protocols."/>
-          <HowStep n="03" title="Start earning"           body="One-tap links to each protocol. You sign every transaction yourself."/>
+          <HowStep n="03" title="Start earning"           body="One-tap links to each earning opportunity."/>
         </div>
       </main>
 
@@ -397,7 +392,7 @@ function ProtoCard({ p, rank, onOpen }: { p: Opportunity; rank: number; onOpen: 
         <ProtoDisc p={p} size={44}/>
         <div style={{ minWidth: 0 }}>
           <div style={{ font: "700 16px/1.1 var(--font-display)", marginBottom: 3 }}>{p.name}</div>
-          <div style={{ font: "400 13px/1.4 var(--font-display)", color: INK_MUTED, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{p.asset} · {p.yieldPct}% APY</div>
+          <div style={{ font: "400 13px/1.4 var(--font-display)", color: INK_MUTED, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{p.asset} · {p.variable ? 'Variable' : `${p.yieldPct}% APY`}</div>
         </div>
         <div style={{ textAlign: 'right', flex: 'none' }}>
           <div style={{ font: "400 22px/1 var(--font-serif)", color: BLUE }}>+${p.monthly.toFixed(2)}</div>
@@ -422,7 +417,7 @@ function ProtoCard({ p, rank, onOpen }: { p: Opportunity; rank: number; onOpen: 
       </div>
       <div>
         <div style={{ font: "500 11px/1 var(--font-display)", color: INK_DIM, letterSpacing: '0.12em', textTransform: 'uppercase', marginBottom: 6 }}>APY</div>
-        <div style={{ font: "400 22px/1 var(--font-serif)", color: INK }}>{p.yieldPct}%</div>
+        <div style={{ font: "400 22px/1 var(--font-serif)", color: INK }}>{p.variable ? 'Variable' : `${p.yieldPct}%`}</div>
       </div>
       <div>
         <div style={{ font: "500 11px/1 var(--font-display)", color: INK_DIM, letterSpacing: '0.12em', textTransform: 'uppercase', marginBottom: 6 }}>Trust</div>
@@ -437,93 +432,498 @@ function ProtoCard({ p, rank, onOpen }: { p: Opportunity; rank: number; onOpen: 
   )
 }
 
-// ── Calculator ────────────────────────────────────────────────────────────────
-function Calculator({ allRates }: { allRates: Rate[] }) {
-  const [raw, setRaw] = useState('')
-  const isMobile = useIsMobile()
-  const amount = parseFloat(raw.replace(/,/g, '')) || 0
-  // allRates already sorted by APY desc, already deduped by name
+// ── Goal panel (inline, shown near hero) ─────────────────────────────────────
+function GoalPanel({
+  yieldMonthly, extras, isMobile,
+}: {
+  yieldMonthly: number
+  extras: Record<Exclude<CategoryId, 'yield'>, { enabled: boolean; monthly: number }>
+  isMobile: boolean
+}) {
+  const [goal, setGoal] = useState('')
+  const goalNum = parseFloat(goal) || 0
+  const plan = useMemo(() => {
+    if (goalNum <= 0) return null
+    const have = yieldMonthly
+      + (extras.launch.enabled ? extras.launch.monthly : 0)
+      + (extras.founder.enabled ? extras.founder.monthly : 0)
+      + (extras.airdrop.enabled ? extras.airdrop.monthly : 0)
+    if (have >= goalNum) return { have, need: 0, suggest: [] as { name: string; monthly: number; risk: RiskLevel }[] }
+    let need = goalNum - have
+    const order = [
+      { id: 'airdrop' as const, name: 'Airdrop Farmoor', risk: 'medium' as RiskLevel, monthly: AIRDROP_TIERS[AIRDROP_TIERS.length - 1].monthly },
+      { id: 'launch'  as const, name: 'Token Launchoor', risk: 'high'   as RiskLevel, monthly: AUDIENCE_TIERS[AUDIENCE_TIERS.length - 2].monthly * 2.2 },
+      { id: 'founder' as const, name: 'Foundoor',        risk: 'high'   as RiskLevel, monthly: FOUNDER_CATEGORIES.find(c => c.id === 'perps')!.monthly * 1.0 },
+    ]
+    const suggest: { name: string; monthly: number; risk: RiskLevel }[] = []
+    for (const o of order) {
+      if (need <= 0) break
+      if (extras[o.id].enabled) continue
+      const take = Math.min(o.monthly, need)
+      suggest.push({ name: o.name, monthly: Math.round(take), risk: o.risk })
+      need -= o.monthly
+    }
+    return { have, need: Math.max(0, Math.round(need)), suggest }
+  }, [goalNum, yieldMonthly, extras])
 
   return (
-    <div>
-      <div style={{ display: 'flex', gap: 8, alignItems: 'center', background: 'rgba(255,255,255,0.05)', border: `1.5px solid ${amount > 0 ? BLUE_2 : 'rgba(255,255,255,0.1)'}`, borderRadius: 16, padding: '4px 4px 4px 20px', maxWidth: 360, transition: 'border-color .2s' }}>
-        <span style={{ font: "500 22px/1 var(--font-display)", color: 'rgba(255,255,255,0.4)' }}>$</span>
-        <input
-          type="text"
-          inputMode="numeric"
-          value={raw}
-          onChange={(e) => setRaw(e.target.value.replace(/[^0-9,]/g, ''))}
-          placeholder="10,000"
-          autoFocus
-          style={{ flex: 1, background: 'transparent', border: 'none', outline: 'none', font: "600 26px/1 var(--font-display)", color: '#fff', padding: '14px 4px', minWidth: 0 }}
-        />
-        {raw && (
-          <button onClick={() => setRaw('')} style={{ flex: 'none', width: 36, height: 36, borderRadius: 12, background: 'rgba(255,255,255,0.1)', border: 'none', color: 'rgba(255,255,255,0.5)', cursor: 'pointer', font: "600 16px/1 var(--font-display)", display: 'grid', placeItems: 'center' }}>✕</button>
-        )}
-      </div>
-
-      {amount > 0 ? (
-        <div style={{ marginTop: 20, display: 'flex', flexDirection: 'column', gap: 8 }}>
-          {allRates.map(r => {
-            const monthly = (amount * r.apy) / 100 / 12
-            const disc: Opportunity = { id: r.id, name: r.name, tagline: '', logo: r.logo, brand: r.brand, initials: r.initials, asset: r.asset, size: '', action: '', detail: '', yieldPct: r.apy, monthly, trust: 1, steps: [], link: '' }
-            return (
-              <div key={r.id} style={{ display: 'flex', alignItems: 'center', gap: 14, padding: isMobile ? '14px 16px' : '14px 18px', background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.07)', borderRadius: 14 }}>
-                <ProtoDisc p={disc} size={36}/>
-                <div style={{ flex: 1, display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
-                  <span style={{ font: "600 15px/1 var(--font-display)", color: '#fff' }}>{r.name}</span>
-                  <span style={{ font: "500 13px/1 var(--font-display)", color: 'rgba(255,255,255,0.35)' }}>{r.apy}% APY</span>
-                </div>
-                <div style={{ textAlign: 'right', flex: 'none' }}>
-                  <div style={{ font: "400 22px/1 var(--font-serif)", color: BLUE_2 }}>+${monthly.toFixed(2)}</div>
-                  <div style={{ font: "500 11px/1 var(--font-display)", color: 'rgba(255,255,255,0.35)', marginTop: 3 }}>per month</div>
-                </div>
-              </div>
-            )
-          })}
-          <div style={{ marginTop: 4, padding: '16px 18px', background: `linear-gradient(135deg, ${BLUE}22, ${BLUE_2}11)`, border: `1px solid ${BLUE_2}44`, borderRadius: 14, display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 12 }}>
-            <div>
-              <div style={{ font: "500 12px/1 var(--font-display)", color: SKY, letterSpacing: '0.12em', textTransform: 'uppercase', marginBottom: 6 }}>Best on ${Number(amount.toFixed(0)).toLocaleString()}</div>
-              <div style={{ font: "400 13px/1 var(--font-display)", color: 'rgba(255,255,255,0.5)' }}>{allRates[0]?.apy}% APY · {allRates[0]?.name}</div>
-            </div>
-            <div style={{ font: "400 32px/1 var(--font-serif)", color: '#fff' }}>
-              +${((amount * (allRates[0]?.apy ?? 0)) / 100 / 12).toFixed(2)}<span style={{ font: "400 16px/1 var(--font-serif)", color: 'rgba(255,255,255,0.5)' }}>/mo</span>
-            </div>
-          </div>
+    <div style={{ padding: isMobile ? '18px' : '22px 24px', background: INK, color: '#fff', borderRadius: 20, marginTop: 32 }}>
+      <div style={{ font: "500 12px/1 var(--font-display)", color: SKY, letterSpacing: '0.14em', textTransform: 'uppercase', marginBottom: 10 }}>Goal calculator</div>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
+        <span style={{ font: "400 22px/1 var(--font-serif)", color: 'rgba(255,255,255,0.7)' }}>I want to make</span>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '8px 14px', background: 'rgba(255,255,255,0.08)', borderRadius: 12, border: '1px solid rgba(255,255,255,0.12)' }}>
+          <span style={{ font: "400 22px/1 var(--font-serif)", color: 'rgba(255,255,255,0.6)' }}>$</span>
+          <input
+            type="number" inputMode="decimal" placeholder="5000" value={goal}
+            onChange={e => setGoal(e.target.value)}
+            style={{ font: "400 22px/1 var(--font-serif)", color: '#fff', background: 'transparent', border: 'none', outline: 'none', width: 120 }}
+          />
         </div>
-      ) : (
-        <div style={{ marginTop: 20, display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-          {[1000, 5000, 10000, 50000].map(preset => (
-            <button key={preset} onClick={() => setRaw(preset.toLocaleString())}
-              style={{ padding: '10px 18px', background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: 999, font: "600 14px/1 var(--font-display)", color: 'rgba(255,255,255,0.7)', cursor: 'pointer' }}>
-              ${preset.toLocaleString()}
-            </button>
-          ))}
+        <span style={{ font: "400 22px/1 var(--font-serif)", color: 'rgba(255,255,255,0.7)' }}>/ month.</span>
+      </div>
+      {plan && (
+        <div style={{ marginTop: 16, font: "400 14px/1.6 var(--font-display)", color: 'rgba(255,255,255,0.75)' }}>
+          {plan.suggest.length === 0 ? (
+            <span>You&apos;re already there on paper. Activate the categories below to lock in the plan.</span>
+          ) : (
+            <>
+              <div>You have <strong style={{ color: '#fff' }}>${Math.round(plan.have).toLocaleString()}/mo</strong> covered. To hit <strong style={{ color: '#fff' }}>${goalNum.toLocaleString()}/mo</strong>, stack:</div>
+              <ul style={{ margin: '10px 0 0', padding: 0, listStyle: 'none', display: 'grid', gap: 6 }}>
+                {plan.suggest.map(s => (
+                  <li key={s.name} style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                    <span style={{ color: '#fff', fontWeight: 600 }}>+${s.monthly.toLocaleString()}</span>
+                    <span>from {s.name}</span>
+                    <RiskBadge risk={s.risk}/>
+                  </li>
+                ))}
+                {plan.need > 0 && (
+                  <li style={{ color: 'rgba(255,255,255,0.6)', fontStyle: 'italic' }}>
+                    Still need ${plan.need.toLocaleString()}/mo beyond these. Scale your inputs below.
+                  </li>
+                )}
+              </ul>
+            </>
+          )}
         </div>
       )}
     </div>
   )
 }
 
+// ── Source + risks block (shown per category) ────────────────────────────────
+function SourceIcon() {
+  return (
+    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/>
+      <path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/>
+    </svg>
+  )
+}
+function WarnIcon() {
+  return (
+    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M10.29 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/>
+      <line x1="12" y1="9" x2="12" y2="13"/>
+      <line x1="12" y1="17" x2="12.01" y2="17"/>
+    </svg>
+  )
+}
+
+function SourceAndRisks({ categoryId }: { categoryId: CategoryId }) {
+  const meta = CATEGORIES.find(c => c.id === categoryId)!
+  const isMobile = useIsMobile()
+  return (
+    <div style={{ marginTop: 28, display: 'grid', gridTemplateColumns: isMobile ? '1fr' : '1fr 1fr', gap: 14 }}>
+      <div style={{ padding: '20px 22px', background: PAPER, borderRadius: 16, border: `1px solid rgba(10,11,26,0.08)` }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 12, color: BLUE_DEEP }}>
+          <SourceIcon/>
+          <div style={{ font: "600 12px/1 var(--font-display)", letterSpacing: '0.14em', textTransform: 'uppercase' }}>Data sources</div>
+        </div>
+        <ul style={{ margin: 0, padding: 0, listStyle: 'none', display: 'grid', gap: 6 }}>
+          {meta.sources.map((s, i) => (
+            <li key={i} style={{ font: "400 13px/1.5 var(--font-display)", color: INK_MUTED }}>
+              {s.url
+                ? <a href={s.url} target="_blank" rel="noopener noreferrer" style={{ color: BLUE, textDecoration: 'underline' }}>{s.label}</a>
+                : s.label}
+            </li>
+          ))}
+        </ul>
+      </div>
+
+      <div style={{ padding: '20px 22px', background: 'rgba(245,158,11,0.08)', borderRadius: 16, border: `1px solid rgba(245,158,11,0.22)` }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 12, color: '#B45309' }}>
+          <WarnIcon/>
+          <div style={{ font: "600 12px/1 var(--font-display)", letterSpacing: '0.14em', textTransform: 'uppercase' }}>Risks to bear in mind</div>
+        </div>
+        <ul style={{ margin: 0, padding: 0, listStyle: 'none', display: 'grid', gap: 8 }}>
+          {meta.risks.map((r, i) => (
+            <li key={i} style={{ display: 'flex', gap: 8, font: "400 13px/1.5 var(--font-display)", color: INK_MUTED }}>
+              <span style={{ flex: 'none', color: '#B45309', marginTop: 2 }}>•</span>
+              <span>{r}</span>
+            </li>
+          ))}
+        </ul>
+      </div>
+    </div>
+  )
+}
+
+// ── Category helpers ──────────────────────────────────────────────────────────
+function RiskBadge({ risk }: { risk: RiskLevel }) {
+  const s = RISK_STYLE[risk]
+  return (
+    <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6, padding: '4px 10px', background: s.bg, color: s.fg, borderRadius: 999, font: "700 11px/1 var(--font-display)", letterSpacing: '0.12em' }}>
+      <span style={{ width: 6, height: 6, borderRadius: 999, background: s.fg }}/>{s.label}
+    </span>
+  )
+}
+
+function Segmented<T extends string>({ options, value, onChange }: { options: readonly { id: T; label: string }[]; value: T | ''; onChange: (v: T) => void }) {
+  return (
+    <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
+      {options.map(o => {
+        const active = o.id === value
+        return (
+          <button key={o.id} onClick={() => onChange(o.id)} style={{
+            font: "500 13px/1 var(--font-display)",
+            padding: '10px 14px', borderRadius: 999,
+            background: active ? INK : 'transparent',
+            color: active ? '#fff' : INK,
+            border: `1px solid ${active ? INK : 'rgba(10,11,26,0.15)'}`,
+            cursor: 'pointer', transition: 'all .15s',
+          }}>{o.label}</button>
+        )
+      })}
+    </div>
+  )
+}
+
+function ToolCard({ t, onOpen }: { t: ToolDef; onOpen: () => void }) {
+  return (
+    <button onClick={onOpen} style={{
+      display: 'flex', alignItems: 'center', gap: 14, width: '100%', textAlign: 'left',
+      padding: '14px 16px', background: '#fff', border: `1px solid ${t.primary ? BLUE_SOFT : 'rgba(10,11,26,0.1)'}`,
+      borderRadius: 14, cursor: 'pointer',
+    }}>
+      <div style={{ flex: 'none', width: 40, height: 40, borderRadius: 10, background: t.brand, color: '#fff', display: 'grid', placeItems: 'center', overflow: 'hidden', font: "700 14px/1 var(--font-display)" }}>
+        {t.logo
+          // eslint-disable-next-line @next/next/no-img-element
+          ? <img src={t.logo} alt={t.name} style={{ width: 40, height: 40, objectFit: 'contain' }}/>
+          : t.initials}
+      </div>
+      <div style={{ flex: 1, minWidth: 0 }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+          <div style={{ font: "700 15px/1.2 var(--font-display)", color: INK }}>{t.name}</div>
+          {t.primary && <span style={{ font: "700 10px/1 var(--font-display)", letterSpacing: '0.14em', color: BLUE, background: BLUE_TINT, padding: '3px 7px', borderRadius: 999 }}>PICK</span>}
+        </div>
+        <div style={{ font: "400 13px/1.4 var(--font-display)", color: INK_MUTED, marginTop: 3 }}>{t.tagline}</div>
+      </div>
+      <span style={{ flex: 'none', color: INK_DIM, font: "500 18px/1 var(--font-display)" }}>→</span>
+    </button>
+  )
+}
+
+function ToolDetail({ t, onClose }: { t: ToolDef; onClose: () => void }) {
+  return (
+    <div style={{ position: 'fixed', inset: 0, background: 'rgba(10,11,26,0.55)', backdropFilter: 'blur(10px)', zIndex: 90, display: 'grid', placeItems: 'center', padding: 24, animation: 'fadein .2s' }} onClick={onClose}>
+      <div onClick={(e) => e.stopPropagation()} style={{ width: 'min(560px, 100%)', background: CREAM, borderRadius: 24, overflow: 'hidden', boxShadow: '0 40px 120px rgba(10,11,26,0.5)', maxHeight: '90vh', overflowY: 'auto' }}>
+        <div style={{ padding: '28px 28px 24px', background: `linear-gradient(180deg, ${t.brand}14, transparent)`, borderBottom: `1px solid rgba(10,11,26,0.06)` }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 14, marginBottom: 12 }}>
+            <div style={{ flex: 'none', width: 48, height: 48, borderRadius: 12, background: t.brand, color: '#fff', display: 'grid', placeItems: 'center', overflow: 'hidden', font: "700 16px/1 var(--font-display)" }}>
+              {t.logo
+                // eslint-disable-next-line @next/next/no-img-element
+                ? <img src={t.logo} alt={t.name} style={{ width: 48, height: 48, objectFit: 'contain' }}/>
+                : t.initials}
+            </div>
+            <div>
+              <div style={{ font: "700 22px/1.1 var(--font-display)" }}>{t.name}</div>
+              <div style={{ font: "400 14px/1.2 var(--font-display)", color: INK_MUTED, marginTop: 4 }}>{t.tagline}</div>
+            </div>
+            <button onClick={onClose} style={{ marginLeft: 'auto', width: 36, height: 36, borderRadius: 999, background: 'rgba(10,11,26,0.06)', border: 'none', cursor: 'pointer', display: 'grid', placeItems: 'center', color: INK_MUTED }}>✕</button>
+          </div>
+        </div>
+        <div style={{ padding: '24px 28px 28px' }}>
+          <div style={{ font: "400 16px/1.5 var(--font-display)", color: INK_MUTED, marginBottom: 22 }}>{t.detail}</div>
+          <div style={{ font: "500 12px/1 var(--font-display)", color: INK_DIM, letterSpacing: '0.12em', textTransform: 'uppercase', marginBottom: 14 }}>How to start</div>
+          <ol style={{ margin: 0, padding: 0, listStyle: 'none', display: 'flex', flexDirection: 'column', gap: 10 }}>
+            {t.steps.map((s, i) => (
+              <li key={i} style={{ display: 'flex', gap: 12, alignItems: 'flex-start', font: "400 15px/1.45 var(--font-display)", color: INK }}>
+                <span style={{ flex: 'none', width: 22, height: 22, borderRadius: 999, background: INK, color: '#fff', display: 'grid', placeItems: 'center', font: "600 12px/1 var(--font-display)", marginTop: 1 }}>{i + 1}</span>
+                {s}
+              </li>
+            ))}
+          </ol>
+          <a href={t.link} target="_blank" rel="noopener noreferrer"
+             style={{ ...primaryBtnStyle, marginTop: 24, width: '100%', justifyContent: 'center', textDecoration: 'none', padding: '18px 24px' }}>
+            Open {t.name} <ExternalArrow/>
+          </a>
+          <div style={{ marginTop: 12, textAlign: 'center', font: "400 12px/1.4 var(--font-display)", color: INK_DIM }}>
+            Earny never moves your funds. You sign every transaction yourself.
+          </div>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+function CategoryPanel({
+  title, estimate, onToggle, enabled, children, note, tools, onOpenTool,
+}: {
+  title: string
+  estimate: number
+  enabled: boolean
+  onToggle: () => void
+  children: React.ReactNode
+  note?: string
+  tools?: ToolDef[]
+  onOpenTool?: (t: ToolDef) => void
+}) {
+  return (
+    <div style={{ display: 'grid', gap: 16 }}>
+      <div style={{ display: 'grid', gap: 12 }}>{children}</div>
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12, flexWrap: 'wrap', padding: '16px 18px', background: BLUE_TINT, borderRadius: 14, border: `1px solid ${BLUE_SOFT}` }}>
+        <div>
+          <div style={{ font: "500 11px/1 var(--font-display)", color: INK_DIM, letterSpacing: '0.14em', textTransform: 'uppercase', marginBottom: 4 }}>{title} estimate</div>
+          <div style={{ font: "400 32px/1 var(--font-serif)", color: INK }}>+${estimate.toLocaleString()}<span style={{ font: "400 16px/1 var(--font-serif)", color: INK_MUTED, fontStyle: 'italic' }}> /mo</span></div>
+        </div>
+        <button onClick={onToggle} disabled={estimate <= 0} style={{
+          font: "600 14px/1 var(--font-display)", padding: '12px 18px', borderRadius: 999,
+          background: enabled ? GREEN : BLUE,
+          color: '#fff', border: 'none', cursor: estimate > 0 ? 'pointer' : 'not-allowed',
+          opacity: estimate > 0 ? 1 : 0.4,
+        }}>{enabled ? '✓ Added to total' : 'Add to my total'}</button>
+      </div>
+
+      {tools && tools.length > 0 && onOpenTool && (
+        <div style={{ display: 'grid', gap: 10, marginTop: 4 }}>
+          <div style={{ font: "500 11px/1 var(--font-display)", color: INK_DIM, letterSpacing: '0.14em', textTransform: 'uppercase' }}>How to actually do it</div>
+          {tools.map(t => <ToolCard key={t.id} t={t} onOpen={() => onOpenTool(t)}/>)}
+        </div>
+      )}
+
+      {note && <div style={{ font: "400 12px/1.5 var(--font-display)", color: INK_DIM }}>{note}</div>}
+    </div>
+  )
+}
+
+function CategoriesSection({
+  opportunities, yieldMonthly, extras, setExtras, isMobile, onOpenProto,
+}: {
+  opportunities: Opportunity[]
+  yieldMonthly: number
+  extras: Record<Exclude<CategoryId, 'yield'>, { enabled: boolean; monthly: number }>
+  setExtras: React.Dispatch<React.SetStateAction<Record<Exclude<CategoryId, 'yield'>, { enabled: boolean; monthly: number }>>>
+  isMobile: boolean
+  onOpenProto: (p: Opportunity) => void
+}) {
+  const [tab, setTab] = useState<CategoryId>('yield')
+  const [openTool, setOpenTool] = useState<ToolDef | null>(null)
+
+  // Launch inputs
+  const [audience, setAudience]       = useState<(typeof AUDIENCE_TIERS)[number]['id'] | ''>('')
+  const [launchType, setLaunchType]   = useState<(typeof LAUNCH_TYPES)[number]['id'] | ''>('')
+  const [priorLaunch, setPriorLaunch] = useState(false)
+  const launchEstimate = useMemo(
+    () => audience && launchType ? estimateLaunch(audience, launchType, priorLaunch) : 0,
+    [audience, launchType, priorLaunch]
+  )
+  useEffect(() => {
+    setExtras(e => e.launch.monthly === launchEstimate ? e : { ...e, launch: { ...e.launch, monthly: launchEstimate } })
+  }, [launchEstimate, setExtras])
+
+  // Founder inputs
+  const [founderCat, setFounderCat]     = useState<(typeof FOUNDER_CATEGORIES)[number]['id'] | ''>('')
+  const [founderStage, setFounderStage] = useState<(typeof FOUNDER_STAGES)[number]['id'] | ''>('')
+  const founderEstimate = useMemo(
+    () => founderCat && founderStage ? estimateFounder(founderCat, founderStage) : 0,
+    [founderCat, founderStage]
+  )
+  useEffect(() => {
+    setExtras(e => e.founder.monthly === founderEstimate ? e : { ...e, founder: { ...e.founder, monthly: founderEstimate } })
+  }, [founderEstimate, setExtras])
+
+  // Airdrop inputs
+  const [airdropTier, setAirdropTier] = useState<(typeof AIRDROP_TIERS)[number]['id'] | ''>('')
+  const airdropEstimate = useMemo(
+    () => airdropTier ? estimateAirdrop(airdropTier) : 0,
+    [airdropTier]
+  )
+  useEffect(() => {
+    setExtras(e => e.airdrop.monthly === airdropEstimate ? e : { ...e, airdrop: { ...e.airdrop, monthly: airdropEstimate } })
+  }, [airdropEstimate, setExtras])
+
+  const toggle = useCallback((k: Exclude<CategoryId, 'yield'>) => {
+    setExtras(e => ({ ...e, [k]: { ...e[k], enabled: !e[k].enabled } }))
+  }, [setExtras])
+
+  // Founder funding stage — informational only, no estimate impact.
+  const [founderFunding, setFounderFunding] = useState<(typeof FOUNDER_FUNDING)[number]['id'] | ''>('')
+
+  const meta = CATEGORIES.find(c => c.id === tab)!
+
+  return (
+    <section style={{ padding: isMobile ? '0 16px 60px' : '0 40px 60px', maxWidth: 1200, margin: '0 auto' }}>
+      <div style={{ font: "500 14px/1.4 var(--font-display)", color: INK_DIM, marginBottom: 14 }}>
+        Explore every way to earn on Base. Pick a category to dive in.
+      </div>
+
+      {/* Tabs */}
+      <div style={{
+        display: 'flex', gap: 8, overflowX: 'auto', paddingBottom: 6, marginBottom: 18,
+        WebkitOverflowScrolling: 'touch',
+        position: 'sticky', top: 0, zIndex: 10,
+        background: CREAM,
+        margin: isMobile ? '0 -16px 18px' : '0 -40px 18px',
+        padding: isMobile ? '8px 16px' : '12px 40px',
+        borderBottom: '1px solid rgba(10,11,26,0.06)',
+      }}>
+        {(['yield', 'airdrop', 'launch', 'founder'] as const).map(id => {
+          const c = CATEGORIES.find(x => x.id === id)!
+          const active = tab === id
+          const badge =
+            id === 'yield'
+              ? { show: yieldMonthly > 0, amount: yieldMonthly }
+              : { show: extras[id].enabled, amount: extras[id].monthly }
+          return (
+            <button key={id} onClick={() => setTab(id)} style={{
+              flex: 'none',
+              display: 'flex', alignItems: 'center', gap: 10,
+              padding: '12px 16px', borderRadius: 14,
+              background: active ? INK : '#fff',
+              color: active ? '#fff' : INK,
+              border: `1px solid ${active ? INK : 'rgba(10,11,26,0.1)'}`,
+              cursor: 'pointer', font: "600 14px/1 var(--font-display)",
+              transition: 'background .15s, color .15s',
+            }}>
+              <span>{c.name}</span>
+              <RiskBadge risk={c.risk}/>
+              {badge.show && <span style={{ font: "500 12px/1 var(--font-display)", color: active ? SKY : GREEN }}>+${Math.round(badge.amount).toLocaleString()}</span>}
+            </button>
+          )
+        })}
+      </div>
+
+      {/* Active tab panel */}
+      <div style={{ padding: isMobile ? '20px' : '28px 32px', background: '#fff', borderRadius: 20, border: '1px solid rgba(10,11,26,0.08)' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 6, flexWrap: 'wrap' }}>
+          <h3 style={{ font: "400 clamp(22px, 2.4vw, 28px)/1.1 var(--font-serif)", margin: 0 }}>{meta.name}</h3>
+          <RiskBadge risk={meta.risk}/>
+        </div>
+        <p style={{ font: "400 14px/1.6 var(--font-display)", color: INK_MUTED, margin: '0 0 20px', maxWidth: 680 }}>{meta.blurb}</p>
+
+        {tab === 'yield' && (
+          <div style={{ display: 'grid', gap: 14 }}>
+            <div style={{ font: "500 12px/1 var(--font-display)", color: INK_DIM, letterSpacing: '0.14em', textTransform: 'uppercase' }}>
+              {opportunities.length} {opportunities.length === 1 ? 'opportunity' : 'opportunities'} matched to your balances
+            </div>
+            <div style={{ display: 'grid', gap: 10 }}>
+              {opportunities.map((p, i) => <ProtoCard key={p.id} p={p} rank={i + 1} onOpen={() => onOpenProto(p)}/>)}
+            </div>
+          </div>
+        )}
+
+        {tab === 'launch' && (
+          <CategoryPanel
+            title="Token launch"
+            estimate={launchEstimate}
+            enabled={extras.launch.enabled}
+            onToggle={() => toggle('launch')}
+            tools={TOOLS_BY_CATEGORY.launch}
+            onOpenTool={setOpenTool}
+          >
+            <div>
+              <div style={{ font: "500 11px/1 var(--font-display)", color: INK_DIM, letterSpacing: '0.14em', textTransform: 'uppercase', marginBottom: 8 }}>Your audience</div>
+              <Segmented options={AUDIENCE_TIERS.map(t => ({ id: t.id, label: t.label }))} value={audience} onChange={setAudience}/>
+            </div>
+            <div>
+              <div style={{ font: "500 11px/1 var(--font-display)", color: INK_DIM, letterSpacing: '0.14em', textTransform: 'uppercase', marginBottom: 8 }}>Token type</div>
+              <Segmented options={LAUNCH_TYPES.map(t => ({ id: t.id, label: t.label }))} value={launchType} onChange={setLaunchType}/>
+            </div>
+            <label style={{ display: 'flex', alignItems: 'center', gap: 10, cursor: 'pointer', font: "500 14px/1 var(--font-display)", color: INK }}>
+              <input type="checkbox" checked={priorLaunch} onChange={e => setPriorLaunch(e.target.checked)} style={{ accentColor: BLUE, width: 16, height: 16 }}/>
+              I&apos;ve launched a token before (1.4× boost)
+            </label>
+          </CategoryPanel>
+        )}
+
+        {tab === 'founder' && (
+          <CategoryPanel
+            title="Founder"
+            estimate={founderEstimate}
+            enabled={extras.founder.enabled}
+            onToggle={() => toggle('founder')}
+            tools={TOOLS_BY_CATEGORY.founder}
+            onOpenTool={setOpenTool}
+          >
+            <div>
+              <div style={{ font: "500 11px/1 var(--font-display)", color: INK_DIM, letterSpacing: '0.14em', textTransform: 'uppercase', marginBottom: 8 }}>What are you building?</div>
+              <Segmented options={FOUNDER_CATEGORIES.map(c => ({ id: c.id, label: c.label }))} value={founderCat} onChange={setFounderCat}/>
+            </div>
+            <div>
+              <div style={{ font: "500 11px/1 var(--font-display)", color: INK_DIM, letterSpacing: '0.14em', textTransform: 'uppercase', marginBottom: 8 }}>Stage</div>
+              <Segmented options={FOUNDER_STAGES.map(s => ({ id: s.id, label: s.label }))} value={founderStage} onChange={setFounderStage}/>
+            </div>
+            <div>
+              <div style={{ font: "500 11px/1 var(--font-display)", color: INK_DIM, letterSpacing: '0.14em', textTransform: 'uppercase', marginBottom: 8 }}>Funding (informational)</div>
+              <Segmented options={FOUNDER_FUNDING.map(f => ({ id: f.id, label: f.label }))} value={founderFunding} onChange={setFounderFunding}/>
+            </div>
+          </CategoryPanel>
+        )}
+
+        {tab === 'airdrop' && (
+          <CategoryPanel
+            title="Airdrop"
+            estimate={airdropEstimate}
+            enabled={extras.airdrop.enabled}
+            onToggle={() => toggle('airdrop')}
+            tools={TOOLS_BY_CATEGORY.airdrop}
+            onOpenTool={setOpenTool}
+          >
+            <div>
+              <div style={{ font: "500 11px/1 var(--font-display)", color: INK_DIM, letterSpacing: '0.14em', textTransform: 'uppercase', marginBottom: 8 }}>How active are you?</div>
+              <Segmented options={AIRDROP_TIERS.map(t => ({ id: t.id, label: t.label }))} value={airdropTier} onChange={setAirdropTier}/>
+            </div>
+          </CategoryPanel>
+        )}
+
+        <SourceAndRisks categoryId={tab}/>
+      </div>
+
+      {openTool && <ToolDetail t={openTool} onClose={() => setOpenTool(null)}/>}
+    </section>
+  )
+}
+
 // ── Results ───────────────────────────────────────────────────────────────────
-function Results({ result, onShare, onReset, onOpenProto, onShowCalc }: {
+function Results({ result, onShare, onReset, onOpenProto }: {
   result: AnalyzeResult
   onShare: () => void
   onReset: () => void
   onOpenProto: (p: Opportunity) => void
-  onShowCalc: () => void
 }) {
-  const { address, opportunities, totalMonthly } = result
+  const { address, opportunities, totalMonthly: yieldMonthly } = result
   const isMobile = useIsMobile()
+
+  // Extras from other categories; each has enabled flag and computed monthly.
+  const [extras, setExtras] = useState<Record<Exclude<CategoryId, 'yield'>, { enabled: boolean; monthly: number }>>({
+    launch:   { enabled: false, monthly: 0 },
+    founder:  { enabled: false, monthly: 0 },
+    airdrop:  { enabled: false, monthly: 0 },
+  })
+
+  const extrasTotal = (['launch', 'founder', 'airdrop'] as const).reduce(
+    (s, k) => s + (extras[k].enabled ? extras[k].monthly : 0), 0
+  )
+  const totalMonthly = yieldMonthly + extrasTotal
 
   return (
     <div style={{ minHeight: '100vh', background: CREAM, color: INK, fontFamily: "var(--font-display)" }}>
-      <header style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: isMobile ? '16px 20px' : '24px 40px', borderBottom: `1px solid rgba(10,11,26,0.06)`, flexWrap: 'wrap', gap: 12 }}>
+      <header style={{ display: 'flex', alignItems: 'center', justifyContent: isMobile ? 'center' : 'space-between', padding: isMobile ? '16px 20px' : '24px 40px', borderBottom: `1px solid rgba(10,11,26,0.06)`, flexWrap: 'wrap', gap: 12 }}>
         <button onClick={onReset} style={{ display: 'flex', alignItems: 'center', background: 'none', border: 'none', cursor: 'pointer', padding: 0 }}>
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img src="/earny-logo-dark.svg" alt="Earny" style={{ height: 26, display: 'block' }}/>
         </button>
-        <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
+        <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap', justifyContent: 'center' }}>
           <AddrChip addr={address}/>
           <button onClick={onReset} style={linkBtnStyle}>New wallet</button>
         </div>
@@ -538,7 +938,7 @@ function Results({ result, onShare, onReset, onOpenProto, onShowCalc }: {
           <div style={{ padding: '60px 0', textAlign: 'center' }}>
             <h1 style={{ font: "400 clamp(36px, 6vw, 56px)/1.1 var(--font-serif)", margin: '0 0 16px' }}>No opportunities found</h1>
             <p style={{ font: "400 18px/1.5 var(--font-display)", color: INK_MUTED, maxWidth: 480, margin: '0 auto' }}>
-              This wallet has no USDC, USDbC, or ETH on Base — or balances are below $1. Try a different wallet, or bridge assets to Base first.
+              This wallet has no USDC, USDbC, or ETH on Base, or balances are below $1. Try a different wallet, or bridge assets to Base first.
             </p>
           </div>
         ) : (
@@ -553,35 +953,35 @@ function Results({ result, onShare, onReset, onOpenProto, onShowCalc }: {
             </div>
 
             <p style={{ font: "400 clamp(16px, 1.6vw, 20px)/1.5 var(--font-display)", color: INK_MUTED, marginTop: 20, maxWidth: 680 }}>
-              That&apos;s what your assets <em style={{ fontFamily: "var(--font-serif)", fontStyle: 'italic', color: INK, fontSize: 22 }}>could</em> be earning each month based on live APYs — if you deploy each asset to its best protocol.
+              {extrasTotal > 0 ? (
+                <>Your combined potential across <strong style={{ color: INK }}>Yield</strong> (${Math.round(yieldMonthly).toLocaleString()}/mo) plus the categories you activated below (${Math.round(extrasTotal).toLocaleString()}/mo).</>
+              ) : (
+                <>That&apos;s what your assets <em style={{ fontFamily: "var(--font-serif)", fontStyle: 'italic', color: INK, fontSize: 22 }}>could</em> be earning each month based on live APYs, if you deploy each asset to its best protocol. Stack more categories below.</>
+              )}
             </p>
             <div style={{ display: 'flex', gap: 12, marginTop: 32, flexWrap: 'wrap' }}>
               <button onClick={onShare} style={primaryBtnStyle}><ShareIcon/> Share my results</button>
-              <button onClick={onShowCalc} style={secondaryBtnStyle}><CalcIcon/> What could I earn?</button>
             </div>
+
+            <GoalPanel yieldMonthly={yieldMonthly} extras={extras} isMobile={isMobile}/>
           </>
         )}
       </section>
 
       {opportunities.length > 0 && (
         <>
-        <section style={{ padding: isMobile ? '0 16px 60px' : '0 40px 60px', maxWidth: 1200, margin: '0 auto' }}>
-          <h2 style={{ font: "400 clamp(28px, 3.2vw, 44px)/1.1 var(--font-serif)", letterSpacing: '-0.01em', margin: '0 0 8px' }}>Where the money is</h2>
-          <div style={{ font: "500 14px/1 var(--font-display)", color: INK_DIM, marginBottom: 20 }}>
-            {opportunities.length} live {opportunities.length === 1 ? 'opportunity' : 'opportunities'} · APYs refresh every 15 min
-          </div>
-          <div style={{ display: 'grid', gap: 10 }}>
-            {opportunities.map((p, i) => <ProtoCard key={p.id} p={p} rank={i + 1} onOpen={() => onOpenProto(p)}/>)}
-          </div>
+        <CategoriesSection
+          opportunities={opportunities}
+          yieldMonthly={yieldMonthly}
+          extras={extras}
+          setExtras={setExtras}
+          isMobile={isMobile}
+          onOpenProto={onOpenProto}
+        />
 
-          <div style={{ marginTop: 32, padding: isMobile ? '20px' : '24px', background: PAPER, borderRadius: 20, border: `1px solid ${BLUE_SOFT}`, display: 'flex', gap: 16, alignItems: 'flex-start' }}>
-            <div style={{ flex: 'none', width: 40, height: 40, borderRadius: 999, background: BLUE_TINT, display: 'grid', placeItems: 'center', color: BLUE }}><InfoIcon/></div>
-            <div>
-              <div style={{ font: "600 15px/1.3 var(--font-display)", marginBottom: 4 }}>How we calculate this</div>
-              <div style={{ font: "400 14px/1.5 var(--font-display)", color: INK_MUTED, maxWidth: 760 }}>
-                We read your token balances directly from Base chain, then fetch live APYs from DefiLlama. Monthly = <code style={{ fontFamily: 'monospace', background: 'rgba(0,0,0,0.05)', padding: '1px 5px', borderRadius: 4 }}>balance × APY ÷ 12</code>. The total shown is what you&apos;d earn deploying each asset into its single best protocol — no double-counting.
-              </div>
-            </div>
+        <section style={{ padding: isMobile ? '0 16px 40px' : '0 40px 40px', maxWidth: 1200, margin: '0 auto' }}>
+          <div style={{ padding: isMobile ? '16px 18px' : '18px 22px', background: PAPER, borderRadius: 14, border: `1px solid rgba(10,11,26,0.08)`, font: "400 13px/1.55 var(--font-display)", color: INK_MUTED }}>
+            <strong style={{ color: INK, fontWeight: 600 }}>For informational purposes only.</strong> Not financial, legal, or tax advice. APYs and earnings estimates are variable, sourced from third parties, and can change or be inaccurate at any time. Do your own research and consult a qualified professional before acting.
           </div>
         </section>
 
@@ -608,7 +1008,7 @@ function ProtoDetail({ p, onClose }: { p: Opportunity; onClose: () => void }) {
             <button onClick={onClose} style={{ marginLeft: 'auto', width: 36, height: 36, borderRadius: 999, background: 'rgba(10,11,26,0.06)', border: 'none', cursor: 'pointer', display: 'grid', placeItems: 'center', color: INK_MUTED }}>✕</button>
           </div>
           <div style={{ display: 'flex', gap: 24, flexWrap: 'wrap' }}>
-            <StatBlock label="APY"        value={`${p.yieldPct}%`}/>
+            <StatBlock label="APY"        value={p.variable ? 'Variable' : `${p.yieldPct}%`}/>
             <StatBlock label="Each month" value={`+$${p.monthly.toFixed(2)}`} accent={BLUE}/>
             <StatBlock label="Your size"  value={p.size}/>
             <div>
@@ -642,7 +1042,7 @@ function ProtoDetail({ p, onClose }: { p: Opportunity; onClose: () => void }) {
 }
 
 // ── Share card ────────────────────────────────────────────────────────────────
-function ShareCard({ result }: { result: AnalyzeResult }) {
+function ShareCard({ result, captureRef }: { result: AnalyzeResult; captureRef?: React.RefObject<HTMLDivElement | null> }) {
   const [scale, setScale] = useState(1)
   const cat = categoryFor(result.totalMonthly)
   const total = Math.round(result.totalMonthly)
@@ -654,69 +1054,61 @@ function ShareCard({ result }: { result: AnalyzeResult }) {
     return () => window.removeEventListener('resize', compute)
   }, [])
 
+  const chips = [
+    { label: 'Yield',        color: '#10B981' },
+    { label: 'Airdrops',     color: '#F59E0B' },
+    { label: 'Token launch', color: BLUE_2   },
+    { label: 'Founder',      color: '#A78BFA' },
+  ]
+
   return (
     <div style={{ width: 1200 * scale, height: 630 * scale, overflow: 'hidden', borderRadius: 20, boxShadow: '0 40px 120px rgba(0,0,0,0.6)' }}>
-      <div style={{ width: 1200, height: 630, transform: `scale(${scale})`, transformOrigin: 'top left', background: INK, color: '#fff', padding: 64, fontFamily: "var(--font-display)", position: 'relative', overflow: 'hidden' }}>
-        <div style={{ position: 'absolute', inset: 0, backgroundImage: `radial-gradient(rgba(46,112,234,0.18) 1.5px, transparent 1.5px)`, backgroundSize: '36px 36px', maskImage: 'radial-gradient(ellipse 80% 60% at 80% 30%, #000 30%, transparent 70%)', WebkitMaskImage: 'radial-gradient(ellipse 80% 60% at 80% 30%, #000 30%, transparent 70%)', pointerEvents: 'none' }}/>
-        <div style={{ position: 'absolute', top: -120, right: -120, width: 520, height: 520, background: `radial-gradient(circle, ${BLUE_2}66 0%, transparent 70%)`, borderRadius: 999, pointerEvents: 'none' }}/>
+      <div ref={captureRef} style={{ width: 1200, height: 630, transform: `scale(${scale})`, transformOrigin: 'top left', background: INK, color: '#fff', padding: '56px 64px', fontFamily: "var(--font-display)", position: 'relative', overflow: 'hidden', display: 'flex', flexDirection: 'column' }}>
+        {/* Backdrop */}
+        <div style={{ position: 'absolute', inset: 0, backgroundImage: `radial-gradient(rgba(46,112,234,0.22) 1.5px, transparent 1.5px)`, backgroundSize: '36px 36px', maskImage: 'radial-gradient(ellipse 90% 70% at 80% 20%, #000 25%, transparent 75%)', WebkitMaskImage: 'radial-gradient(ellipse 90% 70% at 80% 20%, #000 25%, transparent 75%)', pointerEvents: 'none' }}/>
+        <div style={{ position: 'absolute', top: -180, right: -180, width: 620, height: 620, background: `radial-gradient(circle, ${BLUE_2}77 0%, transparent 70%)`, borderRadius: 999, pointerEvents: 'none' }}/>
+        <div style={{ position: 'absolute', bottom: -220, left: -120, width: 520, height: 520, background: `radial-gradient(circle, ${BLUE}44 0%, transparent 70%)`, borderRadius: 999, pointerEvents: 'none' }}/>
 
+        {/* Header */}
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', position: 'relative', zIndex: 2 }}>
           {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img src="/earny-logo.svg" alt="Earny" style={{ height: 40 }}/>
-          <div style={{ display: 'inline-flex', alignItems: 'center', gap: 10, padding: '10px 18px', background: 'rgba(255,255,255,0.06)', border: `1px solid rgba(255,255,255,0.18)`, borderRadius: 999, font: "600 13px/1 var(--font-display)", letterSpacing: '0.14em', textTransform: 'uppercase', color: 'rgba(255,255,255,0.85)' }}>
-            <span style={{ width: 6, height: 6, background: GREEN, borderRadius: 999 }}/>Your onchain CFO
+          <img src="/earny-logo.svg" alt="Earny" style={{ height: 42 }}/>
+          <div style={{ display: 'inline-flex', alignItems: 'center', gap: 10, padding: '10px 18px', background: 'rgba(255,255,255,0.08)', border: `1px solid rgba(255,255,255,0.2)`, borderRadius: 999, font: "700 12px/1 var(--font-display)", letterSpacing: '0.18em', textTransform: 'uppercase', color: 'rgba(255,255,255,0.9)' }}>
+            <span style={{ width: 6, height: 6, background: GREEN, borderRadius: 999 }}/>Every way to earn on Base
           </div>
         </div>
 
-        <div style={{ marginTop: 28, position: 'relative', zIndex: 2, maxWidth: 1000 }}>
-          <div style={{ display: 'inline-flex', alignItems: 'center', gap: 10, padding: '8px 18px', background: `linear-gradient(90deg, ${BLUE}33, ${BLUE_2}00)`, border: `1px solid ${BLUE_2}55`, borderRadius: 999, font: "700 14px/1 var(--font-display)", letterSpacing: '0.14em', textTransform: 'uppercase', color: SKY, marginBottom: 16 }}>
+        {/* Middle — the number is the star */}
+        <div style={{ marginTop: 36, position: 'relative', zIndex: 2, flex: 1, display: 'flex', flexDirection: 'column', justifyContent: 'center' }}>
+          <div style={{ display: 'inline-flex', alignItems: 'center', gap: 10, padding: '8px 18px', background: `linear-gradient(90deg, ${BLUE}55, ${BLUE_2}11)`, border: `1px solid ${BLUE_2}66`, borderRadius: 999, font: "700 13px/1 var(--font-display)", letterSpacing: '0.18em', textTransform: 'uppercase', color: SKY, marginBottom: 14, alignSelf: 'flex-start' }}>
             <span style={{ width: 6, height: 6, background: GREEN, borderRadius: 999 }}/>{cat.toUpperCase()}
           </div>
-          <div style={{ font: "400 24px/1 var(--font-serif)", color: 'rgba(255,255,255,0.55)', marginBottom: 10, fontStyle: 'italic' }}>I&apos;m leaving</div>
-          <div style={{ font: "400 190px/0.95 var(--font-serif)", letterSpacing: '-0.02em', display: 'flex', alignItems: 'baseline', gap: 8 }}>
-            <span style={{ font: "400 100px/1 var(--font-serif)", opacity: 0.65 }}>$</span>
+          <div style={{ font: "400 28px/1 var(--font-serif)", color: 'rgba(255,255,255,0.7)', marginBottom: 6, fontStyle: 'italic' }}>I could be earning</div>
+          <div style={{ font: "400 200px/0.92 var(--font-serif)", letterSpacing: '-0.03em', display: 'flex', alignItems: 'baseline', gap: 6 }}>
+            <span style={{ font: "400 104px/1 var(--font-serif)", opacity: 0.7 }}>$</span>
             <span>{total.toLocaleString()}</span>
-            <span style={{ font: "400 64px/1 var(--font-serif)", color: 'rgba(255,255,255,0.55)', fontStyle: 'italic' }}>/mo</span>
+            <span style={{ font: "400 68px/1 var(--font-serif)", color: 'rgba(255,255,255,0.6)', fontStyle: 'italic' }}>/mo</span>
           </div>
-          <div style={{ font: "400 26px/1.25 var(--font-serif)", color: 'rgba(255,255,255,0.8)', marginTop: 14, fontStyle: 'italic', maxWidth: 820 }}>on the table. Earny showed me where.</div>
+          <div style={{ font: "400 28px/1.2 var(--font-serif)", color: 'rgba(255,255,255,0.85)', marginTop: 10, fontStyle: 'italic' }}>on Base. I just didn&apos;t know where.</div>
+
+          {/* Category chips */}
+          <div style={{ display: 'flex', gap: 10, marginTop: 24, flexWrap: 'wrap' }}>
+            {chips.map(c => (
+              <div key={c.label} style={{ display: 'inline-flex', alignItems: 'center', gap: 8, padding: '9px 16px', background: 'rgba(255,255,255,0.06)', border: `1px solid rgba(255,255,255,0.14)`, borderRadius: 999, font: "600 14px/1 var(--font-display)", color: 'rgba(255,255,255,0.88)' }}>
+                <span style={{ width: 8, height: 8, borderRadius: 999, background: c.color }}/>
+                {c.label}
+              </div>
+            ))}
+          </div>
         </div>
 
-        <div style={{ position: 'absolute', bottom: 48, left: 64, right: 64, display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', zIndex: 2 }}>
-          <div style={{ font: "400 20px/1.3 var(--font-serif)", color: 'rgba(255,255,255,0.7)', fontStyle: 'italic', maxWidth: 420 }}>earny.chat — read-only, never moves your funds.</div>
+        {/* Footer */}
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', zIndex: 2, position: 'relative' }}>
+          <div style={{ font: "400 18px/1.3 var(--font-serif)", color: 'rgba(255,255,255,0.55)', fontStyle: 'italic', maxWidth: 520 }}>Read-only. No connect. No keys. Just your number.</div>
           <div style={{ textAlign: 'right' }}>
-            <div style={{ font: "500 12px/1 var(--font-display)", color: 'rgba(255,255,255,0.5)', marginBottom: 8, letterSpacing: '0.18em', textTransform: 'uppercase' }}>Check yours →</div>
-            <div style={{ font: "600 28px/1 var(--font-display)", color: '#fff' }}>earny.chat</div>
+            <div style={{ font: "700 11px/1 var(--font-display)", color: 'rgba(255,255,255,0.55)', marginBottom: 8, letterSpacing: '0.22em', textTransform: 'uppercase' }}>Find yours →</div>
+            <div style={{ font: "700 32px/1 var(--font-display)", color: '#fff', letterSpacing: '-0.01em' }}>earny.chat</div>
           </div>
-        </div>
-      </div>
-    </div>
-  )
-}
-
-// ── Calc modal ────────────────────────────────────────────────────────────────
-function CalcModal({ allRates, onClose }: { allRates: Rate[]; onClose: () => void }) {
-  const isMobile = useIsMobile()
-  return (
-    <div
-      style={{ position: 'fixed', inset: 0, background: 'rgba(10,11,26,0.7)', backdropFilter: 'blur(10px)', zIndex: 100, display: 'flex', alignItems: isMobile ? 'flex-end' : 'center', justifyContent: 'center', animation: 'fadein .2s', padding: isMobile ? 0 : 40 }}
-      onClick={onClose}
-    >
-      <div
-        onClick={e => e.stopPropagation()}
-        style={{ width: '100%', maxWidth: 820, background: INK, borderRadius: isMobile ? '24px 24px 0 0' : 24, overflow: 'hidden', maxHeight: isMobile ? '90vh' : '80vh', overflowY: 'auto', boxShadow: '0 -20px 80px rgba(0,0,0,0.5)' }}
-      >
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: isMobile ? '20px 20px 0' : '28px 32px 0' }}>
-          <div>
-            <div style={{ font: "500 12px/1 var(--font-display)", color: SKY, letterSpacing: '0.16em', textTransform: 'uppercase', marginBottom: 8 }}>Run the numbers</div>
-            <div style={{ font: "400 clamp(22px, 3vw, 30px)/1.1 var(--font-serif)", color: '#fff' }}>What could you earn?</div>
-          </div>
-          <button onClick={onClose} style={{ width: 36, height: 36, borderRadius: 999, background: 'rgba(255,255,255,0.08)', border: 'none', color: 'rgba(255,255,255,0.6)', cursor: 'pointer', display: 'grid', placeItems: 'center', font: "600 16px/1 var(--font-display)", flex: 'none' }}>✕</button>
-        </div>
-        <div style={{ padding: isMobile ? '16px 20px 32px' : '20px 32px 36px' }}>
-          <p style={{ font: "400 14px/1.5 var(--font-display)", color: 'rgba(255,255,255,0.5)', margin: '0 0 24px' }}>
-            Enter any amount to see monthly returns at today&apos;s live APYs across each protocol.
-          </p>
-          <Calculator allRates={allRates}/>
         </div>
       </div>
     </div>
@@ -726,19 +1118,135 @@ function CalcModal({ allRates, onClose }: { allRates: Rate[]; onClose: () => voi
 // ── Share overlay ─────────────────────────────────────────────────────────────
 function ShareOverlay({ result, onClose }: { result: AnalyzeResult; onClose: () => void }) {
   const [copied, setCopied] = useState(false)
+  const [busy, setBusy]     = useState<'save' | 'share' | null>(null)
+  const [hint, setHint]     = useState('')
   const isMobile = useIsMobile()
   const text     = buildShareText(result.totalMonthly)
-  const ogUrl    = calcOgUrl(result.totalMonthly)
+  const cardRef  = useRef<HTMLDivElement | null>(null)
 
-  const shareTwitter = useCallback(() => {
-    const url = `https://twitter.com/intent/tweet?text=${encodeURIComponent(text)}`
-    window.open(url, '_blank', 'noopener,noreferrer,width=600,height=400')
-  }, [text])
+  const capture = useCallback(async (): Promise<Blob> => {
+    if (!cardRef.current) throw new Error('Card not ready')
+    // Make sure fonts are ready so the serif heading renders correctly.
+    if (document.fonts?.ready) await document.fonts.ready
+    const { toBlob } = await import('html-to-image')
+    const blob = await toBlob(cardRef.current, {
+      pixelRatio: 3,
+      cacheBust: true,
+      backgroundColor: INK,
+      width: 1200,
+      height: 630,
+      style: { transform: 'scale(1)', transformOrigin: 'top left' },
+      canvasWidth: 1200,
+      canvasHeight: 630,
+    })
+    if (!blob) throw new Error('Capture failed')
+    return blob
+  }, [])
 
-  const shareFarcaster = useCallback(() => {
-    const url = `https://warpcast.com/~/compose?text=${encodeURIComponent(text)}`
-    window.open(url, '_blank', 'noopener,noreferrer,width=600,height=500')
-  }, [text])
+  const saveImage = useCallback(async () => {
+    try {
+      setBusy('save')
+      const blob = await capture()
+      const url = URL.createObjectURL(blob)
+      const a = document.createElement('a')
+      a.href = url
+      a.download = 'earny-share.png'
+      document.body.appendChild(a)
+      a.click()
+      a.remove()
+      setTimeout(() => URL.revokeObjectURL(url), 1000)
+    } catch (e) {
+      console.error(e)
+      setHint('Save failed. Try again.')
+    } finally {
+      setBusy(null)
+    }
+  }, [capture])
+
+  const nativeShare = useCallback(async () => {
+    try {
+      setBusy('share')
+      const blob = await capture()
+      const file = new File([blob], 'earny-share.png', { type: 'image/png' })
+      const nav = navigator as Navigator & { canShare?: (d: { files?: File[] }) => boolean }
+      if (nav.canShare?.({ files: [file] })) {
+        await nav.share({ files: [file], text, title: 'Earny' })
+      } else {
+        const url = URL.createObjectURL(blob)
+        const a = document.createElement('a')
+        a.href = url
+        a.download = 'earny-share.png'
+        document.body.appendChild(a)
+        a.click()
+        a.remove()
+        setTimeout(() => URL.revokeObjectURL(url), 1000)
+        setHint('Image saved. Attach it to your post.')
+      }
+    } catch (e) {
+      if ((e as DOMException)?.name !== 'AbortError') {
+        console.error(e)
+        setHint('Share failed. Try saving instead.')
+      }
+    } finally {
+      setBusy(null)
+    }
+  }, [capture, text])
+
+  const shareTwitter = useCallback(async () => {
+    try {
+      setBusy('share')
+      const blob = await capture()
+      const file = new File([blob], 'earny-share.png', { type: 'image/png' })
+      const nav = navigator as Navigator & { canShare?: (d: { files?: File[] }) => boolean }
+      if (isMobile && nav.canShare?.({ files: [file] })) {
+        await nav.share({ files: [file], text })
+      } else {
+        const url = URL.createObjectURL(blob)
+        const a = document.createElement('a')
+        a.href = url
+        a.download = 'earny-share.png'
+        document.body.appendChild(a)
+        a.click()
+        a.remove()
+        setTimeout(() => URL.revokeObjectURL(url), 1000)
+        const intent = `https://twitter.com/intent/tweet?text=${encodeURIComponent(text)}`
+        window.open(intent, '_blank', 'noopener,noreferrer,width=600,height=500')
+        setHint('Image downloaded. Attach it to your tweet.')
+      }
+    } catch (e) {
+      if ((e as DOMException)?.name !== 'AbortError') console.error(e)
+    } finally {
+      setBusy(null)
+    }
+  }, [capture, text, isMobile])
+
+  const shareFarcaster = useCallback(async () => {
+    try {
+      setBusy('share')
+      const blob = await capture()
+      const file = new File([blob], 'earny-share.png', { type: 'image/png' })
+      const nav = navigator as Navigator & { canShare?: (d: { files?: File[] }) => boolean }
+      if (isMobile && nav.canShare?.({ files: [file] })) {
+        await nav.share({ files: [file], text })
+      } else {
+        const url = URL.createObjectURL(blob)
+        const a = document.createElement('a')
+        a.href = url
+        a.download = 'earny-share.png'
+        document.body.appendChild(a)
+        a.click()
+        a.remove()
+        setTimeout(() => URL.revokeObjectURL(url), 1000)
+        const intent = `https://warpcast.com/~/compose?text=${encodeURIComponent(text)}`
+        window.open(intent, '_blank', 'noopener,noreferrer,width=600,height=500')
+        setHint('Image downloaded. Attach it to your cast.')
+      }
+    } catch (e) {
+      if ((e as DOMException)?.name !== 'AbortError') console.error(e)
+    } finally {
+      setBusy(null)
+    }
+  }, [capture, text, isMobile])
 
   const copyLink = useCallback(() => {
     navigator.clipboard.writeText('https://earny.chat').then(() => {
@@ -747,6 +1255,8 @@ function ShareOverlay({ result, onClose }: { result: AnalyzeResult; onClose: () 
     })
   }, [])
 
+  const hasNativeShare = typeof navigator !== 'undefined' && typeof (navigator as Navigator & { share?: unknown }).share === 'function'
+
   return (
     <div
       style={{ position: 'fixed', inset: 0, background: 'rgba(10,11,26,0.85)', backdropFilter: 'blur(12px)', zIndex: 100, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: isMobile ? 16 : 40, animation: 'fadein .2s', overflow: 'auto' }}
@@ -754,40 +1264,46 @@ function ShareOverlay({ result, onClose }: { result: AnalyzeResult; onClose: () 
     >
       <div onClick={(e) => e.stopPropagation()} style={{ display: 'flex', flexDirection: 'column', gap: 16, width: '100%', maxWidth: 1220 }}>
 
-        {/* Share card preview — always shown, scaled on mobile */}
-        <ShareCard result={result}/>
+        <ShareCard result={result} captureRef={cardRef}/>
 
-        {/* Action panel */}
         <div style={{ background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: 20, padding: isMobile ? '20px 16px' : '24px 28px' }}>
           <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 12, marginBottom: 16, flexWrap: 'wrap' }}>
             <div>
               <div style={{ font: "600 16px/1.2 var(--font-display)", color: '#fff', marginBottom: 4 }}>Share your results</div>
               <div style={{ font: "400 13px/1.5 var(--font-display)", color: 'rgba(255,255,255,0.5)' }}>
-                Download the image, then attach it to your post for max impact.
+                {isMobile && hasNativeShare ? 'Tap share to post with the image attached.' : 'Save the image, then attach it to your post.'}
               </div>
             </div>
             <button onClick={onClose} style={{ flex: 'none', width: 32, height: 32, borderRadius: 999, background: 'rgba(255,255,255,0.08)', border: 'none', color: 'rgba(255,255,255,0.5)', cursor: 'pointer', display: 'grid', placeItems: 'center' }}>✕</button>
           </div>
 
           <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-            {/* Download — primary CTA */}
-            <a
-              href={ogUrl}
-              download="earny-share.png"
-              target="_blank"
-              rel="noopener noreferrer"
-              style={{ ...shareBtnStyle, background: BLUE, color: '#fff', flex: isMobile ? '1 1 45%' : 'none', justifyContent: 'center', padding: '14px 18px', textDecoration: 'none', boxShadow: '0 4px 16px rgba(25,109,253,0.3)' }}
+            <button
+              onClick={saveImage}
+              disabled={busy !== null}
+              style={{ ...shareBtnStyle, background: BLUE, color: '#fff', flex: isMobile ? '1 1 45%' : 'none', justifyContent: 'center', padding: '14px 18px', boxShadow: '0 4px 16px rgba(25,109,253,0.3)', opacity: busy === 'save' ? 0.7 : 1 }}
             >
-              <DownloadIcon/> Save image
-            </a>
+              <DownloadIcon/> {busy === 'save' ? 'Saving…' : 'Save image'}
+            </button>
+            {isMobile && hasNativeShare && (
+              <button
+                onClick={nativeShare}
+                disabled={busy !== null}
+                style={{ ...shareBtnStyle, background: 'rgba(255,255,255,0.14)', color: '#fff', flex: '1 1 45%', justifyContent: 'center', padding: '14px 18px' }}
+              >
+                Share…
+              </button>
+            )}
             <button
               onClick={shareTwitter}
+              disabled={busy !== null}
               style={{ ...shareBtnStyle, background: '#000', color: '#fff', flex: isMobile ? '1 1 45%' : 'none', justifyContent: 'center', padding: '14px 18px' }}
             >
               <TwitterIcon/> Post to X
             </button>
             <button
               onClick={shareFarcaster}
+              disabled={busy !== null}
               style={{ ...shareBtnStyle, background: '#7C3AED', color: '#fff', flex: isMobile ? '1 1 45%' : 'none', justifyContent: 'center', padding: '14px 18px' }}
             >
               <FarcasterIcon/> Farcaster
@@ -800,9 +1316,11 @@ function ShareOverlay({ result, onClose }: { result: AnalyzeResult; onClose: () 
             </button>
           </div>
 
-          <div style={{ marginTop: 14, font: "400 12px/1.4 var(--font-display)", color: 'rgba(255,255,255,0.3)' }}>
-            Tip: save the image above, then attach it when posting to X or Farcaster for the card to show up in feeds.
-          </div>
+          {hint && (
+            <div style={{ marginTop: 14, font: "400 12px/1.4 var(--font-display)", color: 'rgba(255,255,255,0.55)' }}>
+              {hint}
+            </div>
+          )}
         </div>
       </div>
     </div>
@@ -827,7 +1345,6 @@ export default function Page() {
   const [result, setResult]       = useState<AnalyzeResult | null>(null)
   const [errorMsg, setErrorMsg]   = useState('')
   const [showShare, setShowShare] = useState(false)
-  const [showCalc, setShowCalc]   = useState(false)
   const [proto, setProto]         = useState<Opportunity | null>(null)
 
   const reset = () => { setView('landing'); setAddr(''); setResult(null); setErrorMsg('') }
@@ -848,13 +1365,11 @@ export default function Page() {
           onShare={() => setShowShare(true)}
           onReset={reset}
           onOpenProto={(p) => setProto(p)}
-          onShowCalc={() => setShowCalc(true)}
         />
       )}
       {view === 'error' && <ErrorState message={errorMsg} onReset={reset}/>}
 
       {showShare && result && <ShareOverlay result={result} onClose={() => setShowShare(false)}/>}
-      {showCalc  && result && <CalcModal allRates={result.allRates} onClose={() => setShowCalc(false)}/>}
       {proto && <ProtoDetail p={proto} onClose={() => setProto(null)}/>}
     </>
   )
