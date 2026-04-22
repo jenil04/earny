@@ -50,6 +50,12 @@ function buildShareText(totalMonthly: number) {
   return `I could be earning $${totalMonthly.toFixed(2)}/mo on Base — and I wasn't.\n\nEarny showed me exactly where my assets should be working.\n\nCheck yours 👇\nearny.chat`
 }
 
+function calcOgUrl(totalMonthly: number) {
+  const base = typeof window !== 'undefined' ? window.location.origin : 'https://earny.chat'
+  const category = categoryFor(totalMonthly)
+  return `${base}/api/og?monthly=${encodeURIComponent(totalMonthly.toFixed(2))}&category=${encodeURIComponent(category)}`
+}
+
 // ── Shared styles ─────────────────────────────────────────────────────────────
 const primaryBtnStyle: React.CSSProperties = {
   font: "600 16px/1 var(--font-display)", background: BLUE, color: '#fff',
@@ -90,6 +96,8 @@ function TwitterIcon() { return <svg width="14" height="14" viewBox="0 0 24 24" 
 function FarcasterIcon() { return <svg width="14" height="14" viewBox="0 0 1000 1000" fill="currentColor"><path d="M257.778 155.556H742.222V844.444H671.111V528.889H670.414C662.554 441.677 589.258 373.333 500 373.333C410.742 373.333 337.446 441.677 329.586 528.889H328.889V844.444H257.778V155.556Z"/><path d="M128.889 253.333L157.778 351.111H182.222V746.667C169.949 746.667 160 756.616 160 768.889V795.556H155.556C143.283 795.556 133.333 805.505 133.333 817.778V844.444H382.222V817.778C382.222 805.505 372.273 795.556 360 795.556H355.556V768.889C355.556 756.616 345.606 746.667 333.333 746.667H306.667V253.333H128.889Z"/><path d="M675.556 746.667C663.283 746.667 653.333 756.616 653.333 768.889V795.556H648.889C636.616 795.556 626.667 805.505 626.667 817.778V844.444H875.556V817.778C875.556 805.505 865.606 795.556 853.333 795.556H848.889V768.889C848.889 756.616 838.94 746.667 826.667 746.667V351.111H851.111L880 253.333H702.222V746.667H675.556Z"/></svg> }
 function CopyIcon() { return <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg> }
 function CheckIcon() { return <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M20 6L9 17l-5-5"/></svg> }
+function DownloadIcon() { return <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 4v12M6 10l6 6 6-6M4 20h16"/></svg> }
+function CalcIcon() { return <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="4" y="2" width="16" height="20" rx="2"/><line x1="8" y1="6" x2="16" y2="6"/><line x1="8" y1="10" x2="10" y2="10"/><line x1="14" y1="10" x2="16" y2="10"/><line x1="8" y1="14" x2="10" y2="14"/><line x1="14" y1="14" x2="16" y2="14"/><line x1="8" y1="18" x2="10" y2="18"/><line x1="14" y1="18" x2="16" y2="18"/></svg> }
 
 // ── Decorative ────────────────────────────────────────────────────────────────
 function GridBackdrop() {
@@ -440,83 +448,72 @@ function Calculator({ opportunities }: { opportunities: Opportunity[] }) {
   ).sort((a, b) => b.yieldPct - a.yieldPct)
 
   return (
-    <section style={{ padding: isMobile ? '0 16px 60px' : '0 40px 80px', maxWidth: 1200, margin: '0 auto' }}>
-      <div style={{ background: INK, borderRadius: 24, padding: isMobile ? '32px 24px 28px' : '48px 48px 40px', position: 'relative', overflow: 'hidden' }}>
-        <div style={{ position: 'absolute', inset: 0, backgroundImage: `radial-gradient(rgba(46,112,234,0.15) 1.2px, transparent 1.2px)`, backgroundSize: '28px 28px', maskImage: 'radial-gradient(ellipse 70% 60% at 80% 50%, #000 20%, transparent 80%)', WebkitMaskImage: 'radial-gradient(ellipse 70% 60% at 80% 50%, #000 20%, transparent 80%)', pointerEvents: 'none' }}/>
-        <div style={{ position: 'absolute', top: -80, right: -80, width: 360, height: 360, background: `radial-gradient(circle, ${BLUE_2}44 0%, transparent 65%)`, borderRadius: 999, pointerEvents: 'none', filter: 'blur(30px)' }}/>
+    <div>
+      <div style={{ display: 'flex', gap: 8, alignItems: 'center', background: 'rgba(255,255,255,0.05)', border: `1.5px solid ${amount > 0 ? BLUE_2 : 'rgba(255,255,255,0.1)'}`, borderRadius: 16, padding: '4px 4px 4px 20px', maxWidth: 360, transition: 'border-color .2s' }}>
+        <span style={{ font: "500 22px/1 var(--font-display)", color: 'rgba(255,255,255,0.4)' }}>$</span>
+        <input
+          type="text"
+          inputMode="numeric"
+          value={raw}
+          onChange={(e) => setRaw(e.target.value.replace(/[^0-9,]/g, ''))}
+          placeholder="10,000"
+          autoFocus
+          style={{ flex: 1, background: 'transparent', border: 'none', outline: 'none', font: "600 26px/1 var(--font-display)", color: '#fff', padding: '14px 4px', minWidth: 0 }}
+        />
+        {raw && (
+          <button onClick={() => setRaw('')} style={{ flex: 'none', width: 36, height: 36, borderRadius: 12, background: 'rgba(255,255,255,0.1)', border: 'none', color: 'rgba(255,255,255,0.5)', cursor: 'pointer', font: "600 16px/1 var(--font-display)", display: 'grid', placeItems: 'center' }}>✕</button>
+        )}
+      </div>
 
-        <div style={{ position: 'relative', zIndex: 2 }}>
-          <div style={{ font: "500 12px/1 var(--font-display)", color: SKY, letterSpacing: '0.16em', textTransform: 'uppercase', marginBottom: 16 }}>Run the numbers</div>
-          <h2 style={{ font: `400 clamp(24px, 3vw, 40px)/1.1 var(--font-serif)`, color: '#fff', letterSpacing: '-0.01em', margin: '0 0 8px' }}>What could you earn?</h2>
-          <p style={{ font: "400 15px/1.5 var(--font-display)", color: 'rgba(255,255,255,0.55)', margin: '0 0 28px', maxWidth: 520 }}>
-            Enter any dollar amount to see how much each protocol returns monthly at today&apos;s live APYs.
-          </p>
-
-          <div style={{ display: 'flex', gap: 8, alignItems: 'center', background: 'rgba(255,255,255,0.05)', border: `1.5px solid ${amount > 0 ? BLUE_2 : 'rgba(255,255,255,0.1)'}`, borderRadius: 16, padding: '4px 4px 4px 20px', maxWidth: 360, transition: 'border-color .2s' }}>
-            <span style={{ font: "500 22px/1 var(--font-display)", color: 'rgba(255,255,255,0.4)' }}>$</span>
-            <input
-              type="text"
-              inputMode="numeric"
-              value={raw}
-              onChange={(e) => setRaw(e.target.value.replace(/[^0-9,]/g, ''))}
-              placeholder="10,000"
-              style={{ flex: 1, background: 'transparent', border: 'none', outline: 'none', font: "600 26px/1 var(--font-display)", color: '#fff', padding: '14px 4px', minWidth: 0 }}
-            />
-            {raw && (
-              <button onClick={() => setRaw('')} style={{ flex: 'none', width: 36, height: 36, borderRadius: 12, background: 'rgba(255,255,255,0.1)', border: 'none', color: 'rgba(255,255,255,0.5)', cursor: 'pointer', font: "600 16px/1 var(--font-display)", display: 'grid', placeItems: 'center' }}>✕</button>
-            )}
-          </div>
-
-          {amount > 0 ? (
-            <div style={{ marginTop: 28, display: 'flex', flexDirection: 'column', gap: 10 }}>
-              {byProto.map(o => {
-                const monthly = (amount * o.yieldPct) / 100 / 12
-                return (
-                  <div key={o.id} style={{ display: 'flex', alignItems: 'center', gap: 14, padding: isMobile ? '14px 16px' : '16px 20px', background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.07)', borderRadius: 14 }}>
-                    <ProtoDisc p={o} size={36}/>
-                    <div style={{ flex: 1, display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
-                      <span style={{ font: "600 15px/1 var(--font-display)", color: '#fff' }}>{o.name}</span>
-                      <span style={{ font: "500 13px/1 var(--font-display)", color: 'rgba(255,255,255,0.35)' }}>{o.yieldPct}% APY</span>
-                    </div>
-                    <div style={{ textAlign: 'right', flex: 'none' }}>
-                      <div style={{ font: "400 22px/1 var(--font-serif)", color: BLUE_2 }}>+${monthly.toFixed(2)}</div>
-                      <div style={{ font: "500 11px/1 var(--font-display)", color: 'rgba(255,255,255,0.35)', marginTop: 3 }}>per month</div>
-                    </div>
-                  </div>
-                )
-              })}
-              <div style={{ marginTop: 6, padding: '18px 20px', background: `linear-gradient(135deg, ${BLUE}22, ${BLUE_2}11)`, border: `1px solid ${BLUE_2}44`, borderRadius: 14, display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 12 }}>
-                <div>
-                  <div style={{ font: "500 12px/1 var(--font-display)", color: SKY, letterSpacing: '0.12em', textTransform: 'uppercase', marginBottom: 6 }}>Best rate on ${Number(amount.toFixed(0)).toLocaleString()}</div>
-                  <div style={{ font: "400 13px/1 var(--font-display)", color: 'rgba(255,255,255,0.5)' }}>{byProto[0]?.yieldPct}% APY · {byProto[0]?.name}</div>
+      {amount > 0 ? (
+        <div style={{ marginTop: 20, display: 'flex', flexDirection: 'column', gap: 8 }}>
+          {byProto.map(o => {
+            const monthly = (amount * o.yieldPct) / 100 / 12
+            return (
+              <div key={o.id} style={{ display: 'flex', alignItems: 'center', gap: 14, padding: isMobile ? '14px 16px' : '14px 18px', background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.07)', borderRadius: 14 }}>
+                <ProtoDisc p={o} size={36}/>
+                <div style={{ flex: 1, display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
+                  <span style={{ font: "600 15px/1 var(--font-display)", color: '#fff' }}>{o.name}</span>
+                  <span style={{ font: "500 13px/1 var(--font-display)", color: 'rgba(255,255,255,0.35)' }}>{o.yieldPct}% APY</span>
                 </div>
-                <div style={{ font: "400 36px/1 var(--font-serif)", color: '#fff' }}>
-                  +${((amount * (byProto[0]?.yieldPct ?? 0)) / 100 / 12).toFixed(2)}<span style={{ font: "400 18px/1 var(--font-serif)", color: 'rgba(255,255,255,0.5)' }}>/mo</span>
+                <div style={{ textAlign: 'right', flex: 'none' }}>
+                  <div style={{ font: "400 22px/1 var(--font-serif)", color: BLUE_2 }}>+${monthly.toFixed(2)}</div>
+                  <div style={{ font: "500 11px/1 var(--font-display)", color: 'rgba(255,255,255,0.35)', marginTop: 3 }}>per month</div>
                 </div>
               </div>
+            )
+          })}
+          <div style={{ marginTop: 4, padding: '16px 18px', background: `linear-gradient(135deg, ${BLUE}22, ${BLUE_2}11)`, border: `1px solid ${BLUE_2}44`, borderRadius: 14, display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 12 }}>
+            <div>
+              <div style={{ font: "500 12px/1 var(--font-display)", color: SKY, letterSpacing: '0.12em', textTransform: 'uppercase', marginBottom: 6 }}>Best on ${Number(amount.toFixed(0)).toLocaleString()}</div>
+              <div style={{ font: "400 13px/1 var(--font-display)", color: 'rgba(255,255,255,0.5)' }}>{byProto[0]?.yieldPct}% APY · {byProto[0]?.name}</div>
             </div>
-          ) : (
-            <div style={{ marginTop: 24, display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-              {[1000, 5000, 10000, 50000].map(preset => (
-                <button key={preset} onClick={() => setRaw(preset.toLocaleString())}
-                  style={{ padding: '10px 18px', background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: 999, font: "600 14px/1 var(--font-display)", color: 'rgba(255,255,255,0.7)', cursor: 'pointer' }}>
-                  ${preset.toLocaleString()}
-                </button>
-              ))}
+            <div style={{ font: "400 32px/1 var(--font-serif)", color: '#fff' }}>
+              +${((amount * (byProto[0]?.yieldPct ?? 0)) / 100 / 12).toFixed(2)}<span style={{ font: "400 16px/1 var(--font-serif)", color: 'rgba(255,255,255,0.5)' }}>/mo</span>
             </div>
-          )}
+          </div>
         </div>
-      </div>
-    </section>
+      ) : (
+        <div style={{ marginTop: 20, display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+          {[1000, 5000, 10000, 50000].map(preset => (
+            <button key={preset} onClick={() => setRaw(preset.toLocaleString())}
+              style={{ padding: '10px 18px', background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: 999, font: "600 14px/1 var(--font-display)", color: 'rgba(255,255,255,0.7)', cursor: 'pointer' }}>
+              ${preset.toLocaleString()}
+            </button>
+          ))}
+        </div>
+      )}
+    </div>
   )
 }
 
 // ── Results ───────────────────────────────────────────────────────────────────
-function Results({ result, onShare, onReset, onOpenProto }: {
+function Results({ result, onShare, onReset, onOpenProto, onShowCalc }: {
   result: AnalyzeResult
   onShare: () => void
   onReset: () => void
   onOpenProto: (p: Opportunity) => void
+  onShowCalc: () => void
 }) {
   const { address, opportunities, totalMonthly } = result
   const isMobile = useIsMobile()
@@ -563,7 +560,7 @@ function Results({ result, onShare, onReset, onOpenProto }: {
             </p>
             <div style={{ display: 'flex', gap: 12, marginTop: 32, flexWrap: 'wrap' }}>
               <button onClick={onShare} style={primaryBtnStyle}><ShareIcon/> Share my results</button>
-              <button onClick={() => alert('Chat with Earny — coming soon.')} style={secondaryBtnStyle}><ChatIcon/> Chat with Earny</button>
+              <button onClick={onShowCalc} style={secondaryBtnStyle}><CalcIcon/> What could I earn?</button>
             </div>
           </>
         )}
@@ -591,7 +588,6 @@ function Results({ result, onShare, onReset, onOpenProto }: {
           </div>
         </section>
 
-        <Calculator opportunities={result.opportunities}/>
         </>
       )}
 
@@ -700,12 +696,42 @@ function ShareCard({ result }: { result: AnalyzeResult }) {
   )
 }
 
+// ── Calc modal ────────────────────────────────────────────────────────────────
+function CalcModal({ opportunities, onClose }: { opportunities: Opportunity[]; onClose: () => void }) {
+  const isMobile = useIsMobile()
+  return (
+    <div
+      style={{ position: 'fixed', inset: 0, background: 'rgba(10,11,26,0.7)', backdropFilter: 'blur(10px)', zIndex: 100, display: 'flex', alignItems: 'flex-end', justifyContent: 'center', animation: 'fadein .2s', padding: isMobile ? 0 : 40 }}
+      onClick={onClose}
+    >
+      <div
+        onClick={e => e.stopPropagation()}
+        style={{ width: '100%', maxWidth: 820, background: INK, borderRadius: isMobile ? '24px 24px 0 0' : 24, overflow: 'hidden', maxHeight: isMobile ? '90vh' : '80vh', overflowY: 'auto', boxShadow: '0 -20px 80px rgba(0,0,0,0.5)' }}
+      >
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: isMobile ? '20px 20px 0' : '28px 32px 0' }}>
+          <div>
+            <div style={{ font: "500 12px/1 var(--font-display)", color: SKY, letterSpacing: '0.16em', textTransform: 'uppercase', marginBottom: 8 }}>Run the numbers</div>
+            <div style={{ font: "400 clamp(22px, 3vw, 30px)/1.1 var(--font-serif)", color: '#fff' }}>What could you earn?</div>
+          </div>
+          <button onClick={onClose} style={{ width: 36, height: 36, borderRadius: 999, background: 'rgba(255,255,255,0.08)', border: 'none', color: 'rgba(255,255,255,0.6)', cursor: 'pointer', display: 'grid', placeItems: 'center', font: "600 16px/1 var(--font-display)", flex: 'none' }}>✕</button>
+        </div>
+        <div style={{ padding: isMobile ? '16px 20px 32px' : '20px 32px 36px' }}>
+          <p style={{ font: "400 14px/1.5 var(--font-display)", color: 'rgba(255,255,255,0.5)', margin: '0 0 24px' }}>
+            Enter any amount to see monthly returns at today&apos;s live APYs across each protocol.
+          </p>
+          <Calculator opportunities={opportunities}/>
+        </div>
+      </div>
+    </div>
+  )
+}
+
 // ── Share overlay ─────────────────────────────────────────────────────────────
 function ShareOverlay({ result, onClose }: { result: AnalyzeResult; onClose: () => void }) {
   const [copied, setCopied] = useState(false)
   const isMobile = useIsMobile()
-  const text = buildShareText(result.totalMonthly)
-  const siteUrl = 'https://earny.chat'
+  const text     = buildShareText(result.totalMonthly)
+  const ogUrl    = calcOgUrl(result.totalMonthly)
 
   const shareTwitter = useCallback(() => {
     const url = `https://twitter.com/intent/tweet?text=${encodeURIComponent(text)}`
@@ -718,7 +744,7 @@ function ShareOverlay({ result, onClose }: { result: AnalyzeResult; onClose: () 
   }, [text])
 
   const copyLink = useCallback(() => {
-    navigator.clipboard.writeText(siteUrl).then(() => {
+    navigator.clipboard.writeText('https://earny.chat').then(() => {
       setCopied(true)
       setTimeout(() => setCopied(false), 2000)
     })
@@ -726,57 +752,60 @@ function ShareOverlay({ result, onClose }: { result: AnalyzeResult; onClose: () 
 
   return (
     <div
-      style={{ position: 'fixed', inset: 0, background: 'rgba(10,11,26,0.8)', backdropFilter: 'blur(10px)', zIndex: 100, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: isMobile ? 20 : 40, animation: 'fadein .2s', overflow: 'auto' }}
+      style={{ position: 'fixed', inset: 0, background: 'rgba(10,11,26,0.85)', backdropFilter: 'blur(12px)', zIndex: 100, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: isMobile ? 16 : 40, animation: 'fadein .2s', overflow: 'auto' }}
       onClick={onClose}
     >
-      <div onClick={(e) => e.stopPropagation()} style={{ display: 'flex', flexDirection: 'column', gap: 20, width: '100%', maxWidth: 1220 }}>
-        {/* Share card preview */}
-        {!isMobile && <ShareCard result={result}/>}
+      <div onClick={(e) => e.stopPropagation()} style={{ display: 'flex', flexDirection: 'column', gap: 16, width: '100%', maxWidth: 1220 }}>
+
+        {/* Share card preview — always shown, scaled on mobile */}
+        <ShareCard result={result}/>
 
         {/* Action panel */}
-        <div style={{ background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: 20, padding: isMobile ? '24px 20px' : '28px 32px' }}>
-          <div style={{ marginBottom: 20 }}>
-            <div style={{ font: "600 18px/1.2 var(--font-display)", color: '#fff', marginBottom: 6 }}>Share your results</div>
-            <div style={{ font: "400 14px/1.5 var(--font-display)", color: 'rgba(255,255,255,0.55)' }}>
-              Let your network know what they&apos;re missing — it takes 10 seconds.
+        <div style={{ background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: 20, padding: isMobile ? '20px 16px' : '24px 28px' }}>
+          <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 12, marginBottom: 16, flexWrap: 'wrap' }}>
+            <div>
+              <div style={{ font: "600 16px/1.2 var(--font-display)", color: '#fff', marginBottom: 4 }}>Share your results</div>
+              <div style={{ font: "400 13px/1.5 var(--font-display)", color: 'rgba(255,255,255,0.5)' }}>
+                Download the image, then attach it to your post for max impact.
+              </div>
             </div>
+            <button onClick={onClose} style={{ flex: 'none', width: 32, height: 32, borderRadius: 999, background: 'rgba(255,255,255,0.08)', border: 'none', color: 'rgba(255,255,255,0.5)', cursor: 'pointer', display: 'grid', placeItems: 'center' }}>✕</button>
           </div>
 
-          {/* Preview text box */}
-          <div style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.08)', borderRadius: 14, padding: '16px 18px', marginBottom: 20 }}>
-            <div style={{ font: "400 14px/1.6 var(--font-display)", color: 'rgba(255,255,255,0.75)', whiteSpace: 'pre-line' }}>{text}</div>
-          </div>
-
-          {/* Buttons */}
-          <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
+          <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+            {/* Download — primary CTA */}
+            <a
+              href={ogUrl}
+              download="earny-share.png"
+              target="_blank"
+              rel="noopener noreferrer"
+              style={{ ...shareBtnStyle, background: BLUE, color: '#fff', flex: isMobile ? '1 1 45%' : 'none', justifyContent: 'center', padding: '14px 18px', textDecoration: 'none', boxShadow: '0 4px 16px rgba(25,109,253,0.3)' }}
+            >
+              <DownloadIcon/> Save image
+            </a>
             <button
               onClick={shareTwitter}
-              style={{ ...shareBtnStyle, background: '#000', color: '#fff', flex: isMobile ? '1 1 auto' : 'none', justifyContent: 'center', padding: '14px 20px' }}
+              style={{ ...shareBtnStyle, background: '#000', color: '#fff', flex: isMobile ? '1 1 45%' : 'none', justifyContent: 'center', padding: '14px 18px' }}
             >
               <TwitterIcon/> Post to X
             </button>
             <button
               onClick={shareFarcaster}
-              style={{ ...shareBtnStyle, background: '#7C3AED', color: '#fff', flex: isMobile ? '1 1 auto' : 'none', justifyContent: 'center', padding: '14px 20px' }}
+              style={{ ...shareBtnStyle, background: '#7C3AED', color: '#fff', flex: isMobile ? '1 1 45%' : 'none', justifyContent: 'center', padding: '14px 18px' }}
             >
-              <FarcasterIcon/> Cast on Farcaster
+              <FarcasterIcon/> Farcaster
             </button>
             <button
               onClick={copyLink}
-              style={{ ...shareBtnStyle, background: copied ? '#10B981' : 'rgba(255,255,255,0.12)', color: '#fff', flex: isMobile ? '1 1 auto' : 'none', justifyContent: 'center', padding: '14px 20px', transition: 'background .2s' }}
+              style={{ ...shareBtnStyle, background: copied ? '#10B981' : 'rgba(255,255,255,0.1)', color: '#fff', flex: isMobile ? '1 1 45%' : 'none', justifyContent: 'center', padding: '14px 18px', transition: 'background .2s' }}
             >
               {copied ? <><CheckIcon/> Copied!</> : <><CopyIcon/> Copy link</>}
             </button>
-            <button onClick={onClose} style={{ ...shareBtnStyle, background: 'rgba(255,255,255,0.06)', color: 'rgba(255,255,255,0.6)', marginLeft: 'auto', padding: '14px 20px' }}>
-              Close
-            </button>
           </div>
 
-          {!isMobile && (
-            <div style={{ marginTop: 16, font: "400 12px/1.4 var(--font-display)", color: 'rgba(255,255,255,0.35)' }}>
-              Right-click the card above to save as an image.
-            </div>
-          )}
+          <div style={{ marginTop: 14, font: "400 12px/1.4 var(--font-display)", color: 'rgba(255,255,255,0.3)' }}>
+            Tip: save the image above, then attach it when posting to X or Farcaster for the card to show up in feeds.
+          </div>
         </div>
       </div>
     </div>
@@ -801,6 +830,7 @@ export default function Page() {
   const [result, setResult]       = useState<AnalyzeResult | null>(null)
   const [errorMsg, setErrorMsg]   = useState('')
   const [showShare, setShowShare] = useState(false)
+  const [showCalc, setShowCalc]   = useState(false)
   const [proto, setProto]         = useState<Opportunity | null>(null)
 
   const reset = () => { setView('landing'); setAddr(''); setResult(null); setErrorMsg('') }
@@ -821,11 +851,13 @@ export default function Page() {
           onShare={() => setShowShare(true)}
           onReset={reset}
           onOpenProto={(p) => setProto(p)}
+          onShowCalc={() => setShowCalc(true)}
         />
       )}
       {view === 'error' && <ErrorState message={errorMsg} onReset={reset}/>}
 
       {showShare && result && <ShareOverlay result={result} onClose={() => setShowShare(false)}/>}
+      {showCalc  && result && <CalcModal opportunities={result.opportunities} onClose={() => setShowCalc(false)}/>}
       {proto && <ProtoDetail p={proto} onClose={() => setProto(null)}/>}
     </>
   )
