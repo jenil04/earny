@@ -28,8 +28,8 @@ export const metadata: Metadata = {
   description: "Find out how much you're leaving on the table every month. Earny reads your Base wallet and shows live earning opportunities across Compound, Aave, Morpho, Fluid, and Moonwell.",
   metadataBase: new URL(BASE_URL),
   icons: {
-    icon: '/earny-icon.png',
-    apple: '/earny-icon.png',
+    icon: '/earny-icon.jpg',
+    apple: '/earny-icon.jpg',
   },
   openGraph: {
     title: 'Earny — Your Onchain CFO',
