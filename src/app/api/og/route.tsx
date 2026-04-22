@@ -1,5 +1,6 @@
 import { ImageResponse } from 'next/og'
 import { NextRequest } from 'next/server'
+import { SERIF_REGULAR_B64, SERIF_ITALIC_B64, FUNNEL_BOLD_B64 } from './fonts'
 
 export const runtime = 'edge'
 
@@ -12,18 +13,22 @@ function categoryFor(monthly: number) {
   return 'Whale Asleep'
 }
 
+function b64ToBuffer(b64: string): ArrayBuffer {
+  const binary = atob(b64)
+  const buf = new Uint8Array(binary.length)
+  for (let i = 0; i < binary.length; i++) buf[i] = binary.charCodeAt(i)
+  return buf.buffer
+}
+
 export async function GET(req: NextRequest) {
-  const { searchParams, origin } = req.nextUrl
+  const { searchParams } = req.nextUrl
   const monthly  = parseFloat(searchParams.get('monthly') ?? '0')
   const category = searchParams.get('category') || categoryFor(monthly)
   const total    = monthly.toFixed(2)
 
-  // Load fonts from the same origin
-  const [serifData, serifItalicData, displayData] = await Promise.all([
-    fetch(`${origin}/fonts/InstrumentSerif-Regular.ttf`).then(r => r.arrayBuffer()),
-    fetch(`${origin}/fonts/InstrumentSerif-Italic.ttf`).then(r => r.arrayBuffer()),
-    fetch(`${origin}/fonts/FunnelDisplay-Bold.ttf`).then(r => r.arrayBuffer()),
-  ])
+  const serifData       = b64ToBuffer(SERIF_REGULAR_B64)
+  const serifItalicData = b64ToBuffer(SERIF_ITALIC_B64)
+  const displayData     = b64ToBuffer(FUNNEL_BOLD_B64)
 
   const INK   = '#0A0B1A'
   const BLUE2 = '#2E70EA'

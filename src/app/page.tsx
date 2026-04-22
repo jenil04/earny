@@ -207,8 +207,7 @@ function MiniPill({ dark = false }: { dark?: boolean }) {
        target="_blank" rel="noopener noreferrer"
        style={{ display: 'inline-flex', alignItems: 'center', gap: 10, padding: '9px 18px', background: bg, border: `1.5px solid ${border}`, borderRadius: 999, font: "700 12px/1 var(--font-display)", letterSpacing: '0.1em', color: text, textDecoration: 'none', whiteSpace: 'nowrap' }}>
       <span style={{ width: 8, height: 8, background: GREEN, borderRadius: 999, boxShadow: `0 0 0 3px ${dark ? 'rgba(16,185,129,0.2)' : 'rgba(16,185,129,0.15)'}` }}/>
-      <span style={{ color: link, textDecoration: 'underline', textUnderlineOffset: 2 }}>MINI</span>
-      <span>IS THE ONLY OFFICIAL TOKEN.</span>
+      <span><span style={{ color: link, textDecoration: 'underline', textUnderlineOffset: 2 }}>MINI</span> IS THE ONLY OFFICIAL TOKEN.</span>
     </a>
   )
 }
@@ -262,11 +261,6 @@ function Landing({ onAnalyze }: { onAnalyze: (addr: string) => void }) {
       <header style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: isMobile ? '20px 20px' : '26px 40px', position: 'relative', zIndex: 3 }}>
         {/* eslint-disable-next-line @next/next/no-img-element */}
         <img src="/earny-logo.svg" alt="Earny" style={{ height: 28, display: 'block' }}/>
-        {!isMobile && (
-          <nav style={{ display: 'flex', gap: 28, font: "500 15px/1 var(--font-display)", color: 'rgba(255,255,255,0.75)', alignItems: 'center' }}>
-            <a href="#how" style={{ color: 'inherit', textDecoration: 'none' }}>How it works</a>
-          </nav>
-        )}
       </header>
 
       <main style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: isMobile ? '24px 20px 60px' : '32px 24px 80px', position: 'relative', zIndex: 2 }}>
@@ -559,7 +553,7 @@ function Results({ result, onShare, onReset, onOpenProto, onShowCalc }: {
             </div>
 
             <p style={{ font: "400 clamp(16px, 1.6vw, 20px)/1.5 var(--font-display)", color: INK_MUTED, marginTop: 20, maxWidth: 680 }}>
-              That&apos;s what your assets <em style={{ fontFamily: "var(--font-serif)", fontStyle: 'italic', color: INK, fontSize: 22 }}>could</em> be earning each month based on live APYs — if you deploy each asset to its best protocol. Read-only, nothing to sign.
+              That&apos;s what your assets <em style={{ fontFamily: "var(--font-serif)", fontStyle: 'italic', color: INK, fontSize: 22 }}>could</em> be earning each month based on live APYs — if you deploy each asset to its best protocol.
             </p>
             <div style={{ display: 'flex', gap: 12, marginTop: 32, flexWrap: 'wrap' }}>
               <button onClick={onShare} style={primaryBtnStyle}><ShareIcon/> Share my results</button>

@@ -19,13 +19,12 @@ export async function GET(req: NextRequest) {
       getBasePools(),
     ])
 
-    // Native ETH + WETH are interchangeable for yield purposes
     const ethTotal = balances.ETH + balances.WETH
+    const totalPortfolioUsd = ethTotal * ethPrice + balances.USDC + balances.USDbC
 
     const opportunities: Opportunity[] = []
 
     for (const def of PROTOCOL_DEFS) {
-      // Resolve balance and USD value for this protocol's token
       let balanceAmount: number
       let balanceUsd: number
       let assetLabel: string
@@ -44,13 +43,19 @@ export async function GET(req: NextRequest) {
         assetLabel    = 'USDbC'
       }
 
-      // Skip tiny balances (< $1)
+      // alwaysShow protocols use total portfolio value if no matching balance
+      if (def.alwaysShow && balanceUsd < 1) {
+        if (totalPortfolioUsd < 1) continue
+        balanceUsd    = totalPortfolioUsd
+        balanceAmount = totalPortfolioUsd
+        assetLabel    = 'USDC'
+      }
+
       if (balanceUsd < 1) continue
 
-      // Find best pool on DefiLlama
       const pool = findBestPool(pools, def.llamaProject, def.llamaSymbol, {
-        minTvl:        def.llamaMinTvl,
-        sortBy:        def.llamaSortBy,
+        minTvl:         def.llamaMinTvl,
+        sortBy:         def.llamaSortBy,
         excludeSymbols: def.llamaExclude,
       })
 
@@ -86,8 +91,7 @@ export async function GET(req: NextRequest) {
     // Highest monthly earnings first
     opportunities.sort((a, b) => b.monthly - a.monthly)
 
-    // A wallet can only deploy each asset to ONE protocol at a time.
-    // Total = best (highest monthly) opportunity per asset type.
+    // Total = best (highest monthly) opportunity per asset type
     const seenAsset = new Set<string>()
     const totalMonthly = Math.round(
       opportunities.reduce((s, o) => {
@@ -109,7 +113,6 @@ export async function GET(req: NextRequest) {
       const apy = pool?.apy ?? def.fallbackApy
       if (!apy) continue
       seenRate.add(def.id)
-      // dedupe by name, keep best apy
       const existing = allRates.find(r => r.name === def.name)
       if (existing) {
         if (apy > existing.apy) existing.apy = Math.round(apy * 10) / 10

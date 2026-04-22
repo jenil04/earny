@@ -11,6 +11,8 @@ export interface ProtocolDef {
   steps: string[]
   // token the wallet needs to have; 'ETH' means native ETH + WETH combined
   token: 'USDC' | 'USDbC' | 'ETH'
+  // if true, always include in results even if user has no matching balance (uses total portfolio USD)
+  alwaysShow?: boolean
   // DefiLlama matching
   llamaProject: string
   llamaSymbol: string   // fragment matched against pool symbol (uppercase)
@@ -131,7 +133,6 @@ export const PROTOCOL_DEFS: ProtocolDef[] = [
     llamaSymbol: 'ETH',
     llamaMinTvl: 1_000_000,
     llamaSortBy: 'apy',
-    // exclude staked variants and cross-collateral symbols containing these
     llamaExclude: ['WSTETH', 'RSETH', 'WEETH', 'CBETH', 'GTMSE', 'MSETH'],
   },
   {
@@ -171,39 +172,20 @@ export const PROTOCOL_DEFS: ProtocolDef[] = [
     llamaExclude: ['WSTETH', 'RSETH', 'WEETH'],
   },
 
-  // ── USDbC ────────────────────────────────────────────────────────────────────
-  {
-    id: 'aave-usdbc',
-    name: 'Aave v3',
-    tagline: 'USDbC supply market',
-    brand: '#B6509E',
-    initials: 'AA',
-    logo: '/logos/aave.png',
-    detail: 'Aave v3 still supports USDbC on Base. Low APY reflects reduced demand as the market migrates to native USDC, but it\'s a safe place to park idle USDbC.',
-    trust: 3,
-    link: 'https://app.aave.com',
-    steps: ['Open Aave on Base', 'Supply USDbC', 'Earn variable rate (consider migrating to USDC for better rates)'],
-    token: 'USDbC',
-    llamaProject: 'aave-v3',
-    llamaSymbol: 'USDBC',  // DefiLlama uses USDBC not USDbC
-    llamaMinTvl: 0,
-    llamaSortBy: 'apy',
-    llamaExclude: [],
-  },
-
   // ── Ample ────────────────────────────────────────────────────────────────────
   {
     id: 'ample-usdc',
     name: 'Ample',
-    tagline: 'Prize-linked USDC savings on Base',
-    brand: '#7B4FE0',
+    tagline: 'Variable yield + prize draws on Base',
+    brand: '#199B61',
     initials: 'AM',
     logo: '/ample.svg',
-    detail: 'Ample is a prize-linked savings protocol on Base. Deposit USDC, keep your principal at all times, and let pooled yield fund weekly prize draws. No lockups, no losses.',
+    detail: 'Ample routes your USDC through multiple yield strategies (currently Euler and Morpho) to maximise returns, then distributes the pooled yield as weekly prize draws. Your principal is always safe and withdrawable — you just swap APY for a chance at a bigger payout.',
     trust: 2,
     link: 'https://ample.money',
-    steps: ['Open ample.money', 'Connect your wallet on Base', 'Deposit USDC — principal is always withdrawable'],
+    steps: ['Open ample.money', 'Connect your wallet on Base', 'Deposit USDC — withdraw anytime, no lockups'],
     token: 'USDC',
+    alwaysShow: true,
     llamaProject: 'ample',
     llamaSymbol: 'USDC',
     llamaMinTvl: 0,
@@ -216,14 +198,14 @@ export const PROTOCOL_DEFS: ProtocolDef[] = [
   {
     id: 'arma-usdc',
     name: 'Arma',
-    tagline: 'Next-gen USDC lending on Base',
+    tagline: 'Multi-strategy USDC yield on Base',
     brand: '#E85D04',
     initials: 'AR',
-    logo: '',
-    detail: 'Arma is a new-generation lending protocol on Base designed for capital efficiency and competitive yields on USDC.',
+    logo: '/arma.svg',
+    detail: 'Arma aggregates across multiple yield protocols on Base to maximise your USDC return — automatically routing capital to wherever rates are highest. New entrant with competitive yields and a capital-efficient design.',
     trust: 1,
     link: 'https://arma.xyz',
-    steps: ['Open arma.xyz', 'Connect your wallet on Base', 'Supply USDC and earn'],
+    steps: ['Open arma.xyz', 'Connect your wallet on Base', 'Supply USDC — Arma routes to the best rate'],
     token: 'USDC',
     llamaProject: 'arma',
     llamaSymbol: 'USDC',
