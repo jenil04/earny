@@ -382,6 +382,101 @@ function ProtoCard({ p, rank, onOpen }: { p: Opportunity; rank: number; onOpen: 
   )
 }
 
+// ── Calculator ────────────────────────────────────────────────────────────────
+function Calculator({ opportunities }: { opportunities: Opportunity[] }) {
+  const [raw, setRaw] = useState('')
+  const amount = parseFloat(raw.replace(/,/g, '')) || 0
+
+  // Deduplicate: one entry per protocol name, keep highest APY
+  const byProto = Object.values(
+    opportunities.reduce<Record<string, Opportunity>>((acc, o) => {
+      if (!acc[o.name] || o.yieldPct > acc[o.name].yieldPct) acc[o.name] = o
+      return acc
+    }, {})
+  ).sort((a, b) => b.yieldPct - a.yieldPct)
+
+  const totalMonthly = amount > 0
+    ? byProto.reduce((s, o) => s + (amount * o.yieldPct) / 100 / 12, 0) / byProto.length
+    : 0
+
+  return (
+    <section style={{ padding: '0 40px 80px', maxWidth: 1200, margin: '0 auto' }}>
+      <div style={{ background: INK, borderRadius: 24, padding: '48px 48px 40px', position: 'relative', overflow: 'hidden' }}>
+        <div style={{ position: 'absolute', inset: 0, backgroundImage: `radial-gradient(rgba(46,112,234,0.15) 1.2px, transparent 1.2px)`, backgroundSize: '28px 28px', maskImage: 'radial-gradient(ellipse 70% 60% at 80% 50%, #000 20%, transparent 80%)', WebkitMaskImage: 'radial-gradient(ellipse 70% 60% at 80% 50%, #000 20%, transparent 80%)', pointerEvents: 'none' }}/>
+        <div style={{ position: 'absolute', top: -80, right: -80, width: 360, height: 360, background: `radial-gradient(circle, ${BLUE_2}44 0%, transparent 65%)`, borderRadius: 999, pointerEvents: 'none', filter: 'blur(30px)' }}/>
+
+        <div style={{ position: 'relative', zIndex: 2 }}>
+          <div style={{ font: "500 12px/1 var(--font-display)", color: SKY, letterSpacing: '0.16em', textTransform: 'uppercase', marginBottom: 16 }}>Run the numbers</div>
+          <h2 style={{ font: "400 clamp(28px, 3vw, 40px)/1.1 var(--font-serif)", color: '#fff', letterSpacing: '-0.01em', margin: '0 0 8px' }}>What could you earn?</h2>
+          <p style={{ font: "400 15px/1.5 var(--font-display)", color: 'rgba(255,255,255,0.55)', margin: '0 0 36px', maxWidth: 520 }}>
+            Enter any dollar amount to see how much each protocol would return monthly at today&apos;s live APYs.
+          </p>
+
+          <div style={{ display: 'flex', gap: 8, alignItems: 'center', background: 'rgba(255,255,255,0.05)', border: `1.5px solid ${amount > 0 ? BLUE_2 : 'rgba(255,255,255,0.1)'}`, borderRadius: 16, padding: '4px 4px 4px 20px', maxWidth: 400, transition: 'border-color .2s' }}>
+            <span style={{ font: "500 22px/1 var(--font-display)", color: 'rgba(255,255,255,0.4)' }}>$</span>
+            <input
+              type="text"
+              inputMode="numeric"
+              value={raw}
+              onChange={(e) => {
+                const v = e.target.value.replace(/[^0-9,]/g, '')
+                setRaw(v)
+              }}
+              placeholder="10,000"
+              style={{ flex: 1, background: 'transparent', border: 'none', outline: 'none', font: "600 26px/1 var(--font-display)", color: '#fff', padding: '14px 4px', minWidth: 0 }}
+            />
+            {raw && (
+              <button onClick={() => setRaw('')} style={{ flex: 'none', width: 36, height: 36, borderRadius: 12, background: 'rgba(255,255,255,0.1)', border: 'none', color: 'rgba(255,255,255,0.5)', cursor: 'pointer', font: "600 16px/1 var(--font-display)", display: 'grid', placeItems: 'center' }}>✕</button>
+            )}
+          </div>
+
+          {amount > 0 && (
+            <div style={{ marginTop: 32, display: 'flex', flexDirection: 'column', gap: 12 }}>
+              {byProto.map(o => {
+                const monthly = (amount * o.yieldPct) / 100 / 12
+                return (
+                  <div key={o.id} style={{ display: 'flex', alignItems: 'center', gap: 16, padding: '16px 20px', background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.07)', borderRadius: 14 }}>
+                    <ProtoDisc p={o} size={36}/>
+                    <div style={{ flex: 1, display: 'flex', alignItems: 'center', gap: 8 }}>
+                      <span style={{ font: "600 15px/1 var(--font-display)", color: '#fff' }}>{o.name}</span>
+                      <span style={{ font: "500 13px/1 var(--font-display)", color: 'rgba(255,255,255,0.35)' }}>{o.yieldPct}% APY</span>
+                    </div>
+                    <div style={{ textAlign: 'right' }}>
+                      <div style={{ font: "400 22px/1 var(--font-serif)", color: BLUE_2 }}>+${monthly.toFixed(2)}</div>
+                      <div style={{ font: "500 11px/1 var(--font-display)", color: 'rgba(255,255,255,0.35)', marginTop: 3 }}>per month</div>
+                    </div>
+                  </div>
+                )
+              })}
+
+              <div style={{ marginTop: 8, padding: '20px 20px', background: `linear-gradient(135deg, ${BLUE}22, ${BLUE_2}11)`, border: `1px solid ${BLUE_2}44`, borderRadius: 14, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <div>
+                  <div style={{ font: "500 12px/1 var(--font-display)", color: SKY, letterSpacing: '0.12em', textTransform: 'uppercase', marginBottom: 6 }}>Best rate on ${Number(amount.toFixed(0)).toLocaleString()}</div>
+                  <div style={{ font: "400 13px/1 var(--font-display)", color: 'rgba(255,255,255,0.5)' }}>at {byProto[0]?.yieldPct}% APY with {byProto[0]?.name}</div>
+                </div>
+                <div style={{ font: "400 40px/1 var(--font-serif)", color: '#fff' }}>
+                  +${((amount * (byProto[0]?.yieldPct ?? 0)) / 100 / 12).toFixed(2)}<span style={{ font: "400 18px/1 var(--font-serif)", color: 'rgba(255,255,255,0.5)' }}>/mo</span>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {amount === 0 && (
+            <div style={{ marginTop: 32, display: 'flex', gap: 10, flexWrap: 'wrap' }}>
+              {[1000, 5000, 10000, 50000].map(preset => (
+                <button key={preset} onClick={() => setRaw(preset.toLocaleString())}
+                  style={{ padding: '10px 18px', background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: 999, font: "600 14px/1 var(--font-display)", color: 'rgba(255,255,255,0.7)', cursor: 'pointer' }}>
+                  ${preset.toLocaleString()}
+                </button>
+              ))}
+            </div>
+          )}
+        </div>
+      </div>
+    </section>
+  )
+}
+
 // ── Results ───────────────────────────────────────────────────────────────────
 function Results({ result, onShare, onReset, onOpenProto }: {
   result: AnalyzeResult
@@ -436,6 +531,7 @@ function Results({ result, onShare, onReset, onOpenProto }: {
       </section>
 
       {opportunities.length > 0 && (
+        <>
         <section style={{ padding: '24px 40px 80px', maxWidth: 1200, margin: '0 auto' }}>
           <h2 style={{ font: "400 clamp(32px, 3.2vw, 44px)/1.1 var(--font-serif)", letterSpacing: '-0.01em', margin: '0 0 8px' }}>Where the money is</h2>
           <div style={{ font: "500 14px/1 var(--font-display)", color: INK_DIM, marginBottom: 24 }}>
@@ -455,6 +551,9 @@ function Results({ result, onShare, onReset, onOpenProto }: {
             </div>
           </div>
         </section>
+
+        <Calculator opportunities={result.opportunities}/>
+        </>
       )}
 
       <SiteFooter dark={false}/>

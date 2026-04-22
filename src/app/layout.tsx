@@ -21,9 +21,30 @@ const instrumentSerif = Instrument_Serif({
   style: ["normal", "italic"],
 });
 
+const BASE_URL = 'https://earny.chat'
+
 export const metadata: Metadata = {
   title: "Earny — Your Onchain CFO",
-  description: "Find out how much you're leaving on the table every month.",
+  description: "Find out how much you're leaving on the table every month. Earny reads your Base wallet and shows live earning opportunities across Compound, Aave, Morpho, Fluid, and Moonwell.",
+  metadataBase: new URL(BASE_URL),
+  icons: {
+    icon: '/earny-icon.png',
+    apple: '/earny-icon.png',
+  },
+  openGraph: {
+    title: 'Earny — Your Onchain CFO',
+    description: "Find out how much you're leaving on the table every month.",
+    url: BASE_URL,
+    siteName: 'Earny',
+    images: [{ url: '/earny-og.png', width: 1456, height: 816, alt: 'Earny — Your Earning Assistant' }],
+    type: 'website',
+  },
+  twitter: {
+    card: 'summary_large_image',
+    title: 'Earny — Your Onchain CFO',
+    description: "Find out how much you're leaving on the table every month.",
+    images: ['/earny-og.png'],
+  },
 };
 
 export default function RootLayout({
