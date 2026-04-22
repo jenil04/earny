@@ -4,6 +4,7 @@ export interface ProtocolDef {
   tagline: string
   brand: string
   initials: string
+  logo: string
   detail: string
   trust: number
   link: string
@@ -28,6 +29,7 @@ export const PROTOCOL_DEFS: ProtocolDef[] = [
     tagline: 'Simple, safe lending',
     brand: '#D26CAD',
     initials: 'CO',
+    logo: '/logos/compound.png',
     detail: 'Single-asset USDC market on Base. Battle-tested, simple risk profile, and currently one of the highest base rates on the network.',
     trust: 3,
     link: 'https://app.compound.finance',
@@ -45,6 +47,7 @@ export const PROTOCOL_DEFS: ProtocolDef[] = [
     tagline: 'Next-gen lending + DEX',
     brand: '#5DD4D1',
     initials: 'FL',
+    logo: '/logos/fluid.png',
     detail: 'Fluid combines lending and AMM liquidity into unified pools for higher effective yield. Solid audits and growing TVL on Base.',
     trust: 2,
     link: 'https://fluid.instadapp.io',
@@ -62,6 +65,7 @@ export const PROTOCOL_DEFS: ProtocolDef[] = [
     tagline: 'Curated USDC vaults, better rates',
     brand: '#2E6CF6',
     initials: 'MO',
+    logo: '/logos/morpho.png',
     detail: 'Morpho curated vaults (Steakhouse, Gauntlet) automatically route your USDC to the highest-yielding underlying market. Billions in TVL.',
     trust: 3,
     link: 'https://app.morpho.org',
@@ -79,6 +83,7 @@ export const PROTOCOL_DEFS: ProtocolDef[] = [
     tagline: 'The original lending market',
     brand: '#B6509E',
     initials: 'AA',
+    logo: '/logos/aave.png',
     detail: 'The largest, most battle-tested lending market in DeFi. Lower APY than Compound but virtually bulletproof security record.',
     trust: 3,
     link: 'https://app.aave.com',
@@ -96,6 +101,7 @@ export const PROTOCOL_DEFS: ProtocolDef[] = [
     tagline: 'Base-native lending with WELL rewards',
     brand: '#C07A4B',
     initials: 'MW',
+    logo: '/logos/moonwell.png',
     detail: 'Base-native lending market. WELL token rewards supplement the base interest rate, boosting your effective APY.',
     trust: 2,
     link: 'https://moonwell.fi',
@@ -115,6 +121,7 @@ export const PROTOCOL_DEFS: ProtocolDef[] = [
     tagline: 'Curated ETH vaults, peer-matched rates',
     brand: '#2E6CF6',
     initials: 'MO',
+    logo: '/logos/morpho.png',
     detail: 'Morpho ETH curated vaults match lenders and borrowers directly, consistently outperforming Aave and Compound on ETH yields.',
     trust: 3,
     link: 'https://app.morpho.org',
@@ -133,6 +140,7 @@ export const PROTOCOL_DEFS: ProtocolDef[] = [
     tagline: 'Native ETH lending on Base',
     brand: '#5DD4D1',
     initials: 'FL',
+    logo: '/logos/fluid.png',
     detail: 'Fluid accepts native ETH directly — no wrapping needed. Combined lending + DEX activity lifts effective yield above standard markets.',
     trust: 2,
     link: 'https://fluid.instadapp.io',
@@ -150,6 +158,7 @@ export const PROTOCOL_DEFS: ProtocolDef[] = [
     tagline: 'ETH lending, bulletproof security',
     brand: '#B6509E',
     initials: 'AA',
+    logo: '/logos/aave.png',
     detail: 'Aave v3 WETH market on Base. Wrap your ETH and supply to the most audited lending protocol in DeFi.',
     trust: 3,
     link: 'https://app.aave.com',
@@ -169,6 +178,7 @@ export const PROTOCOL_DEFS: ProtocolDef[] = [
     tagline: 'USDbC supply market',
     brand: '#B6509E',
     initials: 'AA',
+    logo: '/logos/aave.png',
     detail: 'Aave v3 still supports USDbC on Base. Low APY reflects reduced demand as the market migrates to native USDC, but it\'s a safe place to park idle USDbC.',
     trust: 3,
     link: 'https://app.aave.com',

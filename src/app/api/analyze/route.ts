@@ -70,6 +70,7 @@ export async function GET(req: NextRequest) {
         tagline:  def.tagline,
         brand:    def.brand,
         initials: def.initials,
+        logo:     def.logo,
         asset:    assetLabel,
         size:     sizeStr,
         action:   `Supply ${sizeStr} to ${def.name}`,

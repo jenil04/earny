@@ -116,14 +116,18 @@ function AnimatedNumber({ value }: { value: number }) {
 }
 
 function ProtoDisc({ p, size = 44 }: { p: Opportunity; size?: number }) {
+  const [err, setErr] = useState(false)
   return (
     <div style={{
-      width: size, height: size, borderRadius: 999,
+      width: size, height: size, borderRadius: 999, overflow: 'hidden',
       background: p.brand, color: '#fff', display: 'grid', placeItems: 'center',
       font: `700 ${Math.round(size * 0.36)}px/1 var(--font-display)`,
       letterSpacing: '-0.02em', boxShadow: 'inset 0 -2px 0 rgba(0,0,0,0.12)', flex: 'none',
     }}>
-      {p.initials}
+      {p.logo && !err
+        // eslint-disable-next-line @next/next/no-img-element
+        ? <img src={p.logo} alt={p.name} width={size} height={size} style={{ width: size, height: size, objectFit: 'cover', display: 'block' }} onError={() => setErr(true)}/>
+        : p.initials}
     </div>
   )
 }

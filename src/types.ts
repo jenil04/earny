@@ -4,6 +4,7 @@ export interface Opportunity {
   tagline: string
   brand: string
   initials: string
+  logo: string
   asset: string
   size: string
   action: string
