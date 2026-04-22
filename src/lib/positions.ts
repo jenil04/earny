@@ -33,7 +33,7 @@ export async function getPositions(address: `0x${string}`): Promise<Position[]> 
     POSITION_TOKENS.map(t =>
       publicClient
         .readContract({ address: t.address, abi: erc20Abi, functionName: 'balanceOf', args: [address] })
-        .catch(() => 0n)
+        .catch(() => BigInt(0))
     )
   )
 
