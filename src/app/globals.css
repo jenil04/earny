@@ -1,26 +1,104 @@
 @import "tailwindcss";
 
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
+  /* Brand */
+  --earny-purple:    #562AA7;
+  --earny-purple-2:  #6E3DD1;
+  --earny-purple-3:  #3E1A7D;
+  --earny-purple-bg: #F4EEFF;
+  --earny-orange:    #FE6C11;
+  --earny-orange-2:  #FEB711;
+  --earny-navy:      #1A2238;
+  --earny-navy-2:    #101128;
+  --earny-black:     #000000;
+
+  /* Neutrals (on dark) */
+  --fg-1: rgba(255,255,255,1.00);
+  --fg-2: rgba(255,255,255,0.80);
+  --fg-3: rgba(255,255,255,0.40);
+  --fg-4: rgba(255,255,255,0.15);
+  --fg-5: rgba(255,255,255,0.10);
+
+  /* Neutrals (on light) */
+  --ink-1: rgba(0,0,0,1.00);
+  --ink-2: rgba(0,0,0,0.80);
+  --ink-3: rgba(0,0,0,0.40);
+
+  /* Semantic */
+  --success:      #34C759;
+  --success-2:    #30D158;
+  --success-bg:   rgba(48,209,88,0.10);
+  --info:         #007AFF;
+  --info-bg:      rgba(0,122,255,0.10);
+  --info-blue:    #579DFF;
+  --chat-user-bg: rgba(10,78,194,0.50);
+  --warning:      #FF9500;
+  --warning-bg:   rgba(255,149,0,0.10);
+  --danger:       #FF3B30;
+  --purple:       #AF52DE;
+  --purple-bg:    rgba(175,82,222,0.10);
+  --indigo:       #5856D6;
+  --indigo-bg:    rgba(88,86,214,0.10);
+
+  /* Radii */
+  --r-xs:   4px;
+  --r-sm:   6px;
+  --r-md:   8px;
+  --r-lg:   12px;
+  --r-xl:   28px;
+  --r-2xl:  56px;
+  --r-pill: 1000px;
+
+  /* Spacing */
+  --s-1:  4px;
+  --s-2:  8px;
+  --s-3:  12px;
+  --s-4:  16px;
+  --s-5:  20px;
+  --s-6:  24px;
+  --s-7:  32px;
+  --s-8:  40px;
+  --s-9:  56px;
+  --s-10: 80px;
 }
 
-@theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
-}
-
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
+*, *::before, *::after {
+  box-sizing: border-box;
 }
 
 body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  margin: 0;
+  padding: 0;
+}
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+
+@keyframes fadein {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}
+
+@keyframes pulse {
+  0%, 100% { opacity: 1; }
+  50%       { opacity: 0.3; }
+}
+
+input[type="range"] {
+  -webkit-appearance: none;
+  appearance: none;
+}
+
+input[type="range"]::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 0;
+  height: 0;
+}
+
+input[type="range"]::-moz-range-thumb {
+  width: 0;
+  height: 0;
+  border: none;
 }
