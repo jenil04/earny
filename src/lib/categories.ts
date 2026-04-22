@@ -13,7 +13,7 @@ export interface CategoryMeta {
 export const CATEGORIES: CategoryMeta[] = [
   {
     id: 'yield',
-    name: 'Yield Maximizoor',
+    name: 'Yield',
     short: 'Yield',
     risk: 'low',
     blurb: 'Park your idle assets in the best lending and aggregator vaults on Base.',
@@ -32,7 +32,7 @@ export const CATEGORIES: CategoryMeta[] = [
   },
   {
     id: 'launch',
-    name: 'Token Launchoor',
+    name: 'Token Launch',
     short: 'Token launch',
     risk: 'high',
     blurb: 'Launch a token for your app on Tokens. Creator fees accrue with every trade, as long as people keep trading.',
@@ -51,10 +51,10 @@ export const CATEGORIES: CategoryMeta[] = [
   },
   {
     id: 'founder',
-    name: 'Foundoor',
-    short: 'Found',
+    name: 'Founder Revenue',
+    short: 'Founder',
     risk: 'high',
-    blurb: 'Ship a product with a token or fee model. Your monthly protocol revenue depends on the category and stage.',
+    blurb: 'Ship a product with a token or fee model. Revenue is heavy-tailed: most founders earn near zero, a few earn a lot. These are conservative medians, not averages.',
     sources: [
       { label: 'DefiLlama Fees/Revenue API — Base chain', url: 'https://api.llama.fi/overview/fees/base' },
       { label: 'a16z crypto programs', url: 'https://a16zcrypto.com/crypto-startup-accelerator/' },
@@ -71,10 +71,10 @@ export const CATEGORIES: CategoryMeta[] = [
   },
   {
     id: 'airdrop',
-    name: 'Airdrop Farmoor',
+    name: 'Airdrops',
     short: 'Airdrops',
     risk: 'medium',
-    blurb: 'Stay active across Base dapps. Points and retroactive airdrops accrue to consistent users.',
+    blurb: 'Stay active across Base dapps. Most months pay nothing; occasional large airdrops drive the averages. Estimates are conservative.',
     sources: [
       { label: 'DefiLlama Airdrops dataset', url: 'https://defillama.com/airdrops' },
       { label: 'Layer3.xyz — quest rewards platform', url: 'https://layer3.xyz' },
@@ -96,7 +96,7 @@ export const RISK_STYLE: Record<RiskLevel, { label: string; bg: string; fg: stri
   high:   { label: 'HIGH RISK',   bg: 'rgba(239,68,68,0.14)',   fg: '#EF4444' },
 }
 
-// ── Token Launchoor estimator ────────────────────────────────────────────────
+// ── Token Launch estimator ───────────────────────────────────────────────────
 export const AUDIENCE_TIERS = [
   { id: 'nano',  label: 'Under 500 followers',    monthly: 30 },
   { id: 'small', label: '500 – 5k followers',     monthly: 150 },
@@ -118,22 +118,26 @@ export function estimateLaunch(audience: string, type: string, priorLaunch: bool
   return Math.round(a * t * boost)
 }
 
-// ── Foundoor estimator ───────────────────────────────────────────────────────
+// ── Founder Revenue estimator ────────────────────────────────────────────────
+// Median monthly protocol revenue for a category, at full product-market fit
+// (stage mult = 1). Revenue distribution is extremely heavy-tailed: most
+// projects earn near zero while a handful capture almost all fees. These are
+// conservative medians, not averages.
 export const FOUNDER_CATEGORIES = [
-  { id: 'dex',     label: 'DEX / AMM',         monthly: 1500 },
-  { id: 'lending', label: 'Lending / borrow',  monthly: 2000 },
-  { id: 'perps',   label: 'Perps / derivatives', monthly: 4000 },
-  { id: 'infra',   label: 'Infra / tooling',   monthly: 800 },
-  { id: 'social',  label: 'Social / consumer', monthly: 600 },
-  { id: 'game',    label: 'Game / NFT',        monthly: 400 },
-  { id: 'other',   label: 'Other',             monthly: 500 },
+  { id: 'dex',     label: 'DEX / AMM',           monthly: 400 },
+  { id: 'lending', label: 'Lending / borrow',    monthly: 600 },
+  { id: 'perps',   label: 'Perps / derivatives', monthly: 900 },
+  { id: 'infra',   label: 'Infra / tooling',     monthly: 150 },
+  { id: 'social',  label: 'Social / consumer',   monthly: 120 },
+  { id: 'game',    label: 'Game / NFT',          monthly: 80 },
+  { id: 'other',   label: 'Other',               monthly: 100 },
 ] as const
 
 export const FOUNDER_STAGES = [
-  { id: 'idea', label: 'Still an idea',      mult: 0 },
-  { id: 'mvp',  label: 'MVP in testing',     mult: 0.2 },
-  { id: 'live', label: 'Live with users',    mult: 1.0 },
-  { id: 'scale',label: 'Scaling / product-market fit', mult: 3.0 },
+  { id: 'idea', label: 'Still an idea',              mult: 0 },
+  { id: 'mvp',  label: 'MVP in testing',             mult: 0.05 },
+  { id: 'live', label: 'Live with users',            mult: 0.4 },
+  { id: 'scale',label: 'Scaling / product-market fit', mult: 1.0 },
 ] as const
 
 // Funding stage is informational; we do not apply a revenue multiplier because
@@ -151,11 +155,14 @@ export function estimateFounder(category: string, stage: string): number {
   return Math.round(c * s)
 }
 
-// ── Airdrop Farmoor estimator ────────────────────────────────────────────────
+// ── Airdrop estimator ────────────────────────────────────────────────────────
+// Conservative medians. Most farmers net zero in any given month; a handful of
+// large airdrops per year create the headline payouts. These figures already
+// account for quiet months.
 export const AIRDROP_TIERS = [
-  { id: 'casual',   label: 'Casual — 1 wallet, weekly activity',     monthly: 40 },
-  { id: 'active',   label: 'Active — 2–3 wallets, daily',            monthly: 200 },
-  { id: 'hardcore', label: 'Hardcore — 5+ wallets, scripted',        monthly: 900 },
+  { id: 'casual',   label: 'Casual, 1 wallet, weekly activity',   monthly: 10 },
+  { id: 'active',   label: 'Active, 2 to 3 wallets, daily',       monthly: 45 },
+  { id: 'hardcore', label: 'Hardcore, 5+ wallets, scripted',      monthly: 180 },
 ] as const
 
 export function estimateAirdrop(tier: string): number {

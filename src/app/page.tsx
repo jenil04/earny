@@ -268,7 +268,7 @@ function Landing({ onAnalyze }: { onAnalyze: (addr: string) => void }) {
         </h1>
 
         <p style={{ font: "400 clamp(16px, 1.8vw, 22px)/1.45 var(--font-display)", color: 'rgba(255,255,255,0.68)', textAlign: 'center', maxWidth: 580, margin: '0 0 36px', padding: '0 8px' }}>
-          Drop your wallet. See every way to earn on Base — yield, airdrops, token launches, founder revenue — matched to you in seconds.
+          Drop your wallet and see every way to earn on Base, matched to your assets in seconds.
         </p>
 
         <form
@@ -395,8 +395,8 @@ function ProtoCard({ p, rank, onOpen }: { p: Opportunity; rank: number; onOpen: 
           <div style={{ font: "400 13px/1.4 var(--font-display)", color: INK_MUTED, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{p.asset} · {p.variable ? 'Variable' : `${p.yieldPct}% APY`}</div>
         </div>
         <div style={{ textAlign: 'right', flex: 'none' }}>
-          <div style={{ font: "400 22px/1 var(--font-serif)", color: BLUE }}>+${p.monthly.toFixed(2)}</div>
-          <div style={{ font: "500 11px/1 var(--font-display)", color: INK_DIM, marginTop: 3 }}>/month</div>
+          <div style={{ font: "400 22px/1 var(--font-serif)", color: BLUE }}>{p.variable ? 'Variable' : `+$${p.monthly.toFixed(2)}`}</div>
+          <div style={{ font: "500 11px/1 var(--font-display)", color: INK_DIM, marginTop: 3 }}>{p.variable ? 'reward' : '/month'}</div>
         </div>
       </button>
     )
@@ -425,7 +425,7 @@ function ProtoCard({ p, rank, onOpen }: { p: Opportunity; rank: number; onOpen: 
       </div>
       <div style={{ textAlign: 'right' }}>
         <div style={{ font: "500 11px/1 var(--font-display)", color: INK_DIM, letterSpacing: '0.12em', textTransform: 'uppercase', marginBottom: 4 }}>Each month</div>
-        <div style={{ font: "400 28px/1 var(--font-serif)", color: BLUE }}>+${p.monthly.toFixed(2)}</div>
+        <div style={{ font: "400 28px/1 var(--font-serif)", color: BLUE }}>{p.variable ? 'Variable' : `+$${p.monthly.toFixed(2)}`}</div>
       </div>
       <div style={{ color: hover ? BLUE : INK_DIM, transition: 'color .15s' }}><ChevronRight/></div>
     </button>
@@ -451,9 +451,9 @@ function GoalPanel({
     if (have >= goalNum) return { have, need: 0, suggest: [] as { name: string; monthly: number; risk: RiskLevel }[] }
     let need = goalNum - have
     const order = [
-      { id: 'airdrop' as const, name: 'Airdrop Farmoor', risk: 'medium' as RiskLevel, monthly: AIRDROP_TIERS[AIRDROP_TIERS.length - 1].monthly },
-      { id: 'launch'  as const, name: 'Token Launchoor', risk: 'high'   as RiskLevel, monthly: AUDIENCE_TIERS[AUDIENCE_TIERS.length - 2].monthly * 2.2 },
-      { id: 'founder' as const, name: 'Foundoor',        risk: 'high'   as RiskLevel, monthly: FOUNDER_CATEGORIES.find(c => c.id === 'perps')!.monthly * 1.0 },
+      { id: 'airdrop' as const, name: 'Airdrops',        risk: 'medium' as RiskLevel, monthly: AIRDROP_TIERS[AIRDROP_TIERS.length - 1].monthly },
+      { id: 'launch'  as const, name: 'Token Launch',    risk: 'high'   as RiskLevel, monthly: AUDIENCE_TIERS[AUDIENCE_TIERS.length - 2].monthly * 2.2 },
+      { id: 'founder' as const, name: 'Founder Revenue', risk: 'high'   as RiskLevel, monthly: FOUNDER_CATEGORIES.find(c => c.id === 'perps')!.monthly * 1.0 },
     ]
     const suggest: { name: string; monthly: number; risk: RiskLevel }[] = []
     for (const o of order) {
@@ -1009,7 +1009,7 @@ function ProtoDetail({ p, onClose }: { p: Opportunity; onClose: () => void }) {
           </div>
           <div style={{ display: 'flex', gap: 24, flexWrap: 'wrap' }}>
             <StatBlock label="APY"        value={p.variable ? 'Variable' : `${p.yieldPct}%`}/>
-            <StatBlock label="Each month" value={`+$${p.monthly.toFixed(2)}`} accent={BLUE}/>
+            <StatBlock label="Each month" value={p.variable ? 'Variable' : `+$${p.monthly.toFixed(2)}`} accent={BLUE}/>
             <StatBlock label="Your size"  value={p.size}/>
             <div>
               <div style={{ font: "500 11px/1 var(--font-display)", color: INK_DIM, letterSpacing: '0.12em', textTransform: 'uppercase', marginBottom: 8 }}>Trust</div>

@@ -78,7 +78,7 @@ export async function GET(req: NextRequest) {
         logo:     def.logo,
         asset:    assetLabel,
         size:     sizeStr,
-        action:   `Supply ${sizeStr} to ${def.name}`,
+        action:   `Supply ${assetLabel} to ${def.name}`,
         detail:   def.detail,
         yieldPct: Math.round(apy * 10) / 10,
         monthly:  Math.round(monthly * 100) / 100,
@@ -92,10 +92,12 @@ export async function GET(req: NextRequest) {
     // Highest monthly earnings first
     opportunities.sort((a, b) => b.monthly - a.monthly)
 
-    // Total = best (highest monthly) opportunity per asset type
+    // Total = best (highest monthly) opportunity per asset type. Variable-yield
+    // protocols (e.g. Ample prize draws) don't contribute a fixed monthly number.
     const seenAsset = new Set<string>()
     const totalMonthly = Math.round(
       opportunities.reduce((s, o) => {
+        if (o.variable) return s
         if (!seenAsset.has(o.asset)) { seenAsset.add(o.asset); return s + o.monthly }
         return s
       }, 0) * 100
